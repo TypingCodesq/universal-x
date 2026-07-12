@@ -1,389 +1,271 @@
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+-- Touch fling gui improved
+local ScreenGui = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local Frame_2 = Instance.new("Frame")
+local TextLabel = Instance.new("TextLabel")
+local CloseButton = Instance.new("TextButton")
+local FlingButton = Instance.new("TextButton")
+local HeadsitButton = Instance.new("TextButton")
+local PlayerSelector = Instance.new("TextBox")
+local SpinButton = Instance.new("TextButton")
+local AttachButton = Instance.new("TextButton")
+local NoclipButton = Instance.new("TextButton")
+
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
+Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+Frame.BorderSizePixel = 0
+Frame.Position = UDim2.new(0.388539821, 0, 0.427821517, 0)
+Frame.Size = UDim2.new(0, 158, 0, 220)
+Frame.Active = true
+Frame.Draggable = true
+
+Frame_2.Parent = Frame
+Frame_2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Frame_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+Frame_2.BorderSizePixel = 0
+Frame_2.Size = UDim2.new(0, 158, 0, 25)
+
+TextLabel.Parent = Frame_2
+TextLabel.BackgroundTransparency = 1
+TextLabel.Position = UDim2.new(0.112792775, 0, 0, 0)
+TextLabel.Size = UDim2.new(0, 121, 0, 26)
+TextLabel.Font = Enum.Font.Sarpanch
+TextLabel.Text = "Touch Fling+"
+TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel.TextSize = 25
+
+CloseButton.Parent = Frame_2
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+CloseButton.Position = UDim2.new(0.85, 0, 0.1, 0)
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 18
+
+PlayerSelector.Parent = Frame
+PlayerSelector.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+PlayerSelector.Position = UDim2.new(0.113924049, 0, 0.15, 0)
+PlayerSelector.Size = UDim2.new(0, 121, 0, 25)
+PlayerSelector.Font = Enum.Font.SourceSans
+PlayerSelector.PlaceholderText = "Player Name"
+PlayerSelector.Text = ""
+PlayerSelector.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerSelector.TextSize = 14
+
+FlingButton.Parent = Frame
+FlingButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+FlingButton.Position = UDim2.new(0.113924049, 0, 0.3, 0)
+FlingButton.Size = UDim2.new(0, 121, 0, 30)
+FlingButton.Font = Enum.Font.SourceSansItalic
+FlingButton.Text = "Fling: OFF"
+FlingButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+FlingButton.TextSize = 18
+
+HeadsitButton.Parent = Frame
+HeadsitButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+HeadsitButton.Position = UDim2.new(0.113924049, 0, 0.48, 0)
+HeadsitButton.Size = UDim2.new(0, 121, 0, 30)
+HeadsitButton.Font = Enum.Font.SourceSansItalic
+HeadsitButton.Text = "Headsit: OFF"
+HeadsitButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+HeadsitButton.TextSize = 18
+
+SpinButton.Parent = Frame
+SpinButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SpinButton.Position = UDim2.new(0.113924049, 0, 0.66, 0)
+SpinButton.Size = UDim2.new(0, 121, 0, 30)
+SpinButton.Font = Enum.Font.SourceSansItalic
+SpinButton.Text = "Spin: OFF"
+SpinButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+SpinButton.TextSize = 18
+
+AttachButton.Parent = Frame
+AttachButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+AttachButton.Position = UDim2.new(0.113924049, 0, 0.84, 0)
+AttachButton.Size = UDim2.new(0, 121, 0, 30)
+AttachButton.Font = Enum.Font.SourceSansItalic
+AttachButton.Text = "Attach: OFF"
+AttachButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+AttachButton.TextSize = 18
+
+NoclipButton.Parent = Frame
+NoclipButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+NoclipButton.Position = UDim2.new(0.113924049, 0, 1.02, 0)
+NoclipButton.Size = UDim2.new(0, 121, 0, 30)
+NoclipButton.Font = Enum.Font.SourceSansItalic
+NoclipButton.Text = "Noclip: OFF"
+NoclipButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+NoclipButton.TextSize = 18
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CoreGui = (gethui and gethui()) or game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local mouse = lp:GetMouse()
 
-if not ReplicatedStorage:FindFirstChild("fling_check") then
-    local d = Instance.new("Decal")
-    d.Name = "fling_check"
-    d.Parent = ReplicatedStorage
+if not ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok") then
+	local detection = Instance.new("Decal")
+	detection.Name = "juisdfj0i32i0eidsuf0iok"
+	detection.Parent = ReplicatedStorage
 end
 
-local function create(class, props)
-    local inst = Instance.new(class)
-    for k, v in pairs(props) do
-        inst[k] = v
-    end
-    return inst
+local hiddenfling = false
+local headsit = false
+local spin = false
+local attach = false
+local noclip = false
+local selectedPlayer = nil
+local flingThread, headsitThread, spinThread, attachThread
+local connections = {}
+
+local function getPlayer(name)
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr.Name:lower():find(name:lower()) or plr.DisplayName:lower():find(name:lower()) then
+			return plr
+		end
+	end
+	return nil
 end
 
-local ScreenGui = create("ScreenGui", {
-    Name = "FlingPro",
-    ResetOnSpawn = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    Parent = CoreGui,
-})
-
-local BG = Color3.fromRGB(28, 28, 32)
-local ACCENT = Color3.fromRGB(90, 130, 255)
-local TEXT = Color3.fromRGB(235, 235, 240)
-
-local MinimizedIcon = create("ImageButton", {
-    Size = UDim2.new(0, 48, 0, 48),
-    Position = UDim2.new(0, 20, 0, 20),
-    BackgroundColor3 = BG,
-    Image = "",
-    Visible = false,
-    Parent = ScreenGui,
-})
-create("UICorner", {CornerRadius = UDim.new(1,0)}, {Parent = MinimizedIcon})
-create("UIStroke", {Color = ACCENT, Thickness = 1.5}, {Parent = MinimizedIcon})
-local iconLabel = create("TextLabel", {
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Text = "⚡",
-    Font = Enum.Font.GothamBold,
-    TextSize = 22,
-    TextColor3 = ACCENT,
-    Parent = MinimizedIcon,
-})
-
-local MainFrame = create("Frame", {
-    Name = "Main",
-    Size = UDim2.new(0, 300, 0, 220),
-    Position = UDim2.new(0.5, -150, 0.5, -110),
-    BackgroundColor3 = BG,
-    ClipsDescendants = true,
-    Parent = ScreenGui,
-})
-create("UICorner", {CornerRadius = UDim.new(0,10)}, {Parent = MainFrame})
-
-local shadow = create("ImageLabel", {
-    Image = "rbxassetid://1316045217",
-    ImageColor3 = Color3.new(0,0,0),
-    ImageTransparency = 0.45,
-    ScaleType = Enum.ScaleType.Slice,
-    SliceCenter = Rect.new(10,10,118,118),
-    Size = UDim2.new(1,40,1,40),
-    Position = UDim2.new(0,-20,0,-20),
-    BackgroundTransparency = 1,
-    ZIndex = -1,
-    Parent = MainFrame,
-})
-
-local TopBar = create("Frame", {
-    Size = UDim2.new(1,0,0,34),
-    BackgroundColor3 = Color3.fromRGB(35,35,40),
-    Parent = MainFrame,
-})
-create("UICorner", {CornerRadius = UDim.new(0,10)}, {Parent = TopBar})
-create("Frame", {
-    Size = UDim2.new(1,0,0,10),
-    Position = UDim2.new(0,0,1,-10),
-    BackgroundColor3 = TopBar.BackgroundColor3,
-    BorderSizePixel = 0,
-    Parent = TopBar,
-})
-
-local title = create("TextLabel", {
-    Text = "⚡ Touch Fling Pro",
-    Font = Enum.Font.GothamBold,
-    TextSize = 14,
-    TextColor3 = TEXT,
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0,10,0,0),
-    Size = UDim2.new(1,-100,1,0),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    Parent = TopBar,
-})
-
-local MinBtn = create("TextButton", {
-    Text = "–",
-    Font = Enum.Font.GothamBold,
-    TextSize = 18,
-    TextColor3 = TEXT,
-    BackgroundTransparency = 1,
-    Size = UDim2.new(0,36,1,0),
-    Position = UDim2.new(1,-72,0,0),
-    Parent = TopBar,
-})
-
-local CloseBtn = create("TextButton", {
-    Text = "✕",
-    Font = Enum.Font.GothamBold,
-    TextSize = 14,
-    TextColor3 = Color3.fromRGB(255,100,100),
-    BackgroundTransparency = 1,
-    Size = UDim2.new(0,36,1,0),
-    Position = UDim2.new(1,-36,0,0),
-    Parent = TopBar,
-})
-
-local Content = create("ScrollingFrame", {
-    Size = UDim2.new(1,-10,1,-40),
-    Position = UDim2.new(0,5,0,38),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-    ScrollBarThickness = 2,
-    ScrollBarImageColor3 = ACCENT,
-    CanvasSize = UDim2.new(0,0,0,0),
-    Parent = MainFrame,
-})
-local layout = create("UIListLayout", {
-    Padding = UDim.new(0,6),
-    SortOrder = Enum.SortOrder.LayoutOrder,
-    Parent = Content,
-})
-layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Content.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
-end)
-
-local function addButton(text, callback)
-    local btn = create("TextButton", {
-        Text = text,
-        Font = Enum.Font.Gotham,
-        TextSize = 13,
-        TextColor3 = TEXT,
-        BackgroundColor3 = ACCENT,
-        Size = UDim2.new(1,-6,0,30),
-        LayoutOrder = #Content:GetChildren(),
-        Parent = Content,
-    })
-    create("UICorner", {CornerRadius = UDim.new(0,6)}, {Parent = btn})
-    btn.MouseButton1Click:Connect(callback)
-    return btn
+local function flingFunc()
+	while hiddenfling do
+		RunService.Heartbeat:Wait()
+		local c = lp.Character
+		local hrp = c and c:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local vel = hrp.Velocity
+			hrp.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+			RunService.RenderStepped:Wait()
+			hrp.Velocity = vel
+			RunService.Stepped:Wait()
+			hrp.Velocity = vel + Vector3.new(0, 0.1, 0)
+		end
+	end
 end
 
-local function addToggle(text, default, callback)
-    local state = default
-    local holder = create("Frame", {
-        Size = UDim2.new(1,-6,0,32),
-        BackgroundColor3 = Color3.fromRGB(22,22,26),
-        LayoutOrder = #Content:GetChildren(),
-        Parent = Content,
-    })
-    create("UICorner", {CornerRadius = UDim.new(0,6)}, {Parent = holder})
-
-    create("TextLabel", {
-        Text = text,
-        Font = Enum.Font.Gotham,
-        TextSize = 13,
-        TextColor3 = TEXT,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0,8,0,0),
-        Size = UDim2.new(1,-70,1,0),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = holder,
-    })
-
-    local switch = create("TextButton", {
-        Text = "",
-        Size = UDim2.new(0,40,0,20),
-        Position = UDim2.new(1,-50,0.5,-10),
-        BackgroundColor3 = state and ACCENT or Color3.fromRGB(60,60,65),
-        Parent = holder,
-    })
-    create("UICorner", {CornerRadius = UDim.new(1,0)}, {Parent = switch})
-
-    local knob = create("Frame", {
-        Size = UDim2.new(0,16,0,16),
-        Position = state and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8),
-        BackgroundColor3 = Color3.new(1,1,1),
-        Parent = switch,
-    })
-    create("UICorner", {CornerRadius = UDim.new(1,0)}, {Parent = knob})
-
-    switch.MouseButton1Click:Connect(function()
-        state = not state
-        local goalCol = state and ACCENT or Color3.fromRGB(60,60,65)
-        local goalPos = state and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)
-        TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = goalCol}):Play()
-        TweenService:Create(knob, TweenInfo.new(0.2), {Position = goalPos}):Play()
-        callback(state)
-    end)
+local function headsitFunc(target)
+	while headsit and target and target.Character and target.Character:FindFirstChild("Head") do
+		local myChar = lp.Character
+		local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		local targetHead = target.Character.Head
+		if myHrp and targetHead then
+			myHrp.CFrame = targetHead.CFrame * CFrame.new(0, 2.5, 0) * CFrame.Angles(math.rad(90), 0, 0)
+		end
+		RunService.Heartbeat:Wait()
+	end
 end
 
-local function addSlider(text, min, max, default, callback)
-    local holder = create("Frame", {
-        Size = UDim2.new(1,-6,0,42),
-        BackgroundColor3 = Color3.fromRGB(22,22,26),
-        LayoutOrder = #Content:GetChildren(),
-        Parent = Content,
-    })
-    create("UICorner", {CornerRadius = UDim.new(0,6)}, {Parent = holder})
-
-    local label = create("TextLabel", {
-        Text = text .. ": " .. tostring(default),
-        Font = Enum.Font.Gotham,
-        TextSize = 12,
-        TextColor3 = TEXT,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0,8,0,2),
-        Size = UDim2.new(1,-16,0,16),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = holder,
-    })
-
-    local bar = create("Frame", {
-        Size = UDim2.new(1,-16,0,6),
-        Position = UDim2.new(0,8,1,-14),
-        BackgroundColor3 = Color3.fromRGB(50,50,55),
-        Parent = holder,
-    })
-    create("UICorner", {CornerRadius = UDim.new(1,0)}, {Parent = bar})
-
-    local fill = create("Frame", {
-        Size = UDim2.new((default-min)/(max-min),0,1,0),
-        BackgroundColor3 = ACCENT,
-        Parent = bar,
-    })
-    create("UICorner", {CornerRadius = UDim.new(1,0)}, {Parent = fill})
-
-    local draggingSlider = false
-    local function updateFromX(x)
-        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-        local val = math.floor(min + (max-min)*rel)
-        fill.Size = UDim2.new(rel,0,1,0)
-        label.Text = text .. ": " .. tostring(val)
-        callback(val)
-    end
-
-    bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = true
-            updateFromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            updateFromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = false
-        end
-    end)
+local function spinFunc()
+	while spin do
+		local c = lp.Character
+		local hrp = c and c:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(15), 0)
+		end
+		RunService.Heartbeat:Wait()
+	end
 end
 
-local flingActive = false
-local flingPower = 10000
-local currentTarget = nil
-
-MinBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    MinimizedIcon.Visible = true
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
-MinimizedIcon.MouseButton1Click:Connect(function()
-    MinimizedIcon.Visible = false
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0,0,0,0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Size = UDim2.new(0,300,0,220)}):Play()
-end)
-
-local function dragElement(element, target)
-    local dragging, start, startPos
-    element.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            start = input.Position
-            startPos = target.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            local delta = input.Position - start
-            target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+local function attachFunc(target)
+	while attach and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") do
+		local myChar = lp.Character
+		local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		local targetHrp = target.Character.HumanoidRootPart
+		if myHrp and targetHrp then
+			myHrp.CFrame = targetHrp.CFrame * CFrame.new(0, 0, -3)
+		end
+		RunService.Heartbeat:Wait()
+	end
 end
 
-dragElement(TopBar, MainFrame)
-dragElement(MinimizedIcon, MinimizedIcon)
+local function toggleNoclip()
+	if noclip then
+		for _, conn in pairs(connections) do
+			conn:Disconnect()
+		end
+		connections = {}
+		local char = lp.Character
+		if char then
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	else
+		local char = lp.Character
+		if char then
+			table.insert(connections, RunService.Stepped:Connect(function()
+				for _, part in pairs(char:GetDescendants()) do
+					if part:IsA("BasePart") and part.CanCollide then
+						part.CanCollide = false
+					end
+				end
+			end))
+		end
+	end
+end
 
-addToggle("Fling Target", false, function(state)
-    flingActive = state
-    if state then
-        task.spawn(function()
-            while flingActive do
-                RunService.Heartbeat:Wait()
-                if currentTarget and currentTarget.Character then
-                    local hrp = currentTarget.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local vel = hrp.Velocity
-                        hrp.Velocity = vel * flingPower + Vector3.new(0, flingPower, 0)
-                        RunService.RenderStepped:Wait()
-                        hrp.Velocity = vel
-                        RunService.Stepped:Wait()
-                        hrp.Velocity = vel + Vector3.new(0, flingPower/10, 0)
-                    end
-                end
-            end
-        end)
-    end
+CloseButton.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
 end)
 
-addSlider("Fling Power", 1000, 50000, 10000, function(val)
-    flingPower = val
+PlayerSelector.FocusLost:Connect(function()
+	selectedPlayer = getPlayer(PlayerSelector.Text)
 end)
 
-addButton("🎯 Select Target (touch player)", function()
-    local t = Mouse.Target
-    if t and t.Parent then
-        local plr = Players:GetPlayerFromCharacter(t.Parent)
-        if plr and plr ~= LocalPlayer then
-            currentTarget = plr
-        end
-    end
+FlingButton.MouseButton1Click:Connect(function()
+	hiddenfling = not hiddenfling
+	FlingButton.Text = hiddenfling and "Fling: ON" or "Fling: OFF"
+	if hiddenfling then
+		flingThread = coroutine.create(flingFunc)
+		coroutine.resume(flingThread)
+	end
 end)
 
-addButton("🧑‍💻 Head Sit Target", function()
-    if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Head") then
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = currentTarget.Character.Head.CFrame * CFrame.new(0, 2, 0)
-        end
-    end
+HeadsitButton.MouseButton1Click:Connect(function()
+	headsit = not headsit
+	HeadsitButton.Text = headsit and "Headsit: ON" or "Headsit: OFF"
+	if headsit and selectedPlayer then
+		headsitThread = coroutine.create(function() headsitFunc(selectedPlayer) end)
+		coroutine.resume(headsitThread)
+	end
 end)
 
-addButton("📍 TP to Target", function()
-    if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") then
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = currentTarget.Character.HumanoidRootPart.CFrame
-        end
-    end
+SpinButton.MouseButton1Click:Connect(function()
+	spin = not spin
+	SpinButton.Text = spin and "Spin: ON" or "Spin: OFF"
+	if spin then
+		spinThread = coroutine.create(spinFunc)
+		coroutine.resume(spinThread)
+	end
 end)
 
-addButton("🗑 Clear Target", function()
-    currentTarget = nil
+AttachButton.MouseButton1Click:Connect(function()
+	attach = not attach
+	AttachButton.Text = attach and "Attach: ON" or "Attach: OFF"
+	if attach and selectedPlayer then
+		attachThread = coroutine.create(function() attachFunc(selectedPlayer) end)
+		coroutine.resume(attachThread)
+	end
 end)
 
-addButton("🌌 TP to Sky", function()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = CFrame.new(char.HumanoidRootPart.Position.X, 500, char.HumanoidRootPart.Position.Z)
-    end
+NoclipButton.MouseButton1Click:Connect(function()
+	noclip = not noclip
+	NoclipButton.Text = noclip and "Noclip: ON" or "Noclip: OFF"
+	toggleNoclip()
 end)
 
-addButton("🖱 TP to Mouse", function()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local hit = Mouse.Hit
-        if hit then
-            char.HumanoidRootPart.CFrame = CFrame.new(hit.Position.X, hit.Position.Y + 5, hit.Position.Z)
-        end
-    end
+lp.CharacterAdded:Connect(function()
+	if noclip then
+		task.wait(1)
+		toggleNoclip()
+		toggleNoclip()
+	end
 end)
