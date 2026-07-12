@@ -338,3 +338,5 @@ lp.CharacterAdded:Connect(function()
 	task.wait(1)
 	if toggles.noclip then toggleNoclip(true) end
 end)
+
+print("ok")
