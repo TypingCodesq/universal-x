@@ -1,11 +1,3 @@
---[[
-    Touch Fling Pro – Mobile Optimized
-    • Small draggable UI (300×220)
-    • Minimize to floating icon
-    • Fling ON/OFF with power slider
-    • Target selection, Head Sit, Teleports
-]]
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
@@ -15,16 +7,12 @@ local CoreGui = (gethui and gethui()) or game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- Anti-detection (opcional)
 if not ReplicatedStorage:FindFirstChild("fling_check") then
     local d = Instance.new("Decal")
     d.Name = "fling_check"
     d.Parent = ReplicatedStorage
 end
 
--- --------------------------------------------------
--- UI Components
--- --------------------------------------------------
 local function create(class, props)
     local inst = Instance.new(class)
     for k, v in pairs(props) do
@@ -40,12 +28,10 @@ local ScreenGui = create("ScreenGui", {
     Parent = CoreGui,
 })
 
--- Tema
 local BG = Color3.fromRGB(28, 28, 32)
 local ACCENT = Color3.fromRGB(90, 130, 255)
 local TEXT = Color3.fromRGB(235, 235, 240)
 
--- Icono minimizado
 local MinimizedIcon = create("ImageButton", {
     Size = UDim2.new(0, 48, 0, 48),
     Position = UDim2.new(0, 20, 0, 20),
@@ -65,33 +51,7 @@ local iconLabel = create("TextLabel", {
     TextColor3 = ACCENT,
     Parent = MinimizedIcon,
 })
-MinimizedIcon.MouseButton1Click:Connect(function()
-    MinimizedIcon.Visible = false
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0,0,0,0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Size = UDim2.new(0,300,0,220)}):Play()
-end)
 
--- Arrastre del icono
-local dragIcon = false
-MinimizedIcon.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragIcon = true
-        local start = input.Position
-        local startPos = MinimizedIcon.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragIcon = false end
-        end)
-        UserInputService.InputChanged:Connect(function(move)
-            if move == input and dragIcon then
-                local delta = move.Position - start
-                MinimizedIcon.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            end
-        end)
-    end
-end)
-
--- Ventana principal
 local MainFrame = create("Frame", {
     Name = "Main",
     Size = UDim2.new(0, 300, 0, 220),
@@ -102,7 +62,6 @@ local MainFrame = create("Frame", {
 })
 create("UICorner", {CornerRadius = UDim.new(0,10)}, {Parent = MainFrame})
 
--- Sombra
 local shadow = create("ImageLabel", {
     Image = "rbxassetid://1316045217",
     ImageColor3 = Color3.new(0,0,0),
@@ -116,7 +75,6 @@ local shadow = create("ImageLabel", {
     Parent = MainFrame,
 })
 
--- Barra superior
 local TopBar = create("Frame", {
     Size = UDim2.new(1,0,0,34),
     BackgroundColor3 = Color3.fromRGB(35,35,40),
@@ -143,7 +101,6 @@ local title = create("TextLabel", {
     Parent = TopBar,
 })
 
--- Botón minimizar
 local MinBtn = create("TextButton", {
     Text = "–",
     Font = Enum.Font.GothamBold,
@@ -154,12 +111,7 @@ local MinBtn = create("TextButton", {
     Position = UDim2.new(1,-72,0,0),
     Parent = TopBar,
 })
-MinBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    MinimizedIcon.Visible = true
-end)
 
--- Botón cerrar
 local CloseBtn = create("TextButton", {
     Text = "✕",
     Font = Enum.Font.GothamBold,
@@ -170,30 +122,7 @@ local CloseBtn = create("TextButton", {
     Position = UDim2.new(1,-36,0,0),
     Parent = TopBar,
 })
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
 
--- Arrastre de la ventana
-local dragging = false
-TopBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        local start = input.Position
-        local startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-        UserInputService.InputChanged:Connect(function(move)
-            if move == input and dragging then
-                local delta = move.Position - start
-                MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            end
-        end)
-    end
-end)
-
--- Contenido
 local Content = create("ScrollingFrame", {
     Size = UDim2.new(1,-10,1,-40),
     Position = UDim2.new(0,5,0,38),
@@ -213,7 +142,6 @@ layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Content.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
 end)
 
--- Función para crear botones
 local function addButton(text, callback)
     local btn = create("TextButton", {
         Text = text,
@@ -342,29 +270,65 @@ local function addSlider(text, min, max, default, callback)
     end)
 end
 
--- --------------------------------------------------
--- LÓGICA DEL FLING Y DEMÁS
--- --------------------------------------------------
 local flingActive = false
 local flingPower = 10000
+local currentTarget = nil
 
-addToggle("Touch Fling", false, function(state)
+MinBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    MinimizedIcon.Visible = true
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+MinimizedIcon.MouseButton1Click:Connect(function()
+    MinimizedIcon.Visible = false
+    MainFrame.Visible = true
+    MainFrame.Size = UDim2.new(0,0,0,0)
+    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Size = UDim2.new(0,300,0,220)}):Play()
+end)
+
+local function dragElement(element, target)
+    local dragging, start, startPos
+    element.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            start = input.Position
+            startPos = target.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - start
+            target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+dragElement(TopBar, MainFrame)
+dragElement(MinimizedIcon, MinimizedIcon)
+
+addToggle("Fling Target", false, function(state)
     flingActive = state
     if state then
         task.spawn(function()
             while flingActive do
                 RunService.Heartbeat:Wait()
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local vel = hrp.Velocity
-                    hrp.Velocity = vel * flingPower + Vector3.new(0, flingPower, 0)
-                    RunService.RenderStepped:Wait()
-                    hrp.Velocity = vel
-                    RunService.Stepped:Wait()
-                    hrp.Velocity = vel + Vector3.new(0, 0.1, 0)
-                    task.wait()
-                    hrp.Velocity = vel
+                if currentTarget and currentTarget.Character then
+                    local hrp = currentTarget.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local vel = hrp.Velocity
+                        hrp.Velocity = vel * flingPower + Vector3.new(0, flingPower, 0)
+                        RunService.RenderStepped:Wait()
+                        hrp.Velocity = vel
+                        RunService.Stepped:Wait()
+                        hrp.Velocity = vel + Vector3.new(0, flingPower/10, 0)
+                    end
                 end
             end
         end)
@@ -375,10 +339,7 @@ addSlider("Fling Power", 1000, 50000, 10000, function(val)
     flingPower = val
 end)
 
--- Target selection
-local currentTarget = nil
-
-addButton("🎯 Select Target (click player)", function()
+addButton("🎯 Select Target (touch player)", function()
     local t = Mouse.Target
     if t and t.Parent then
         local plr = Players:GetPlayerFromCharacter(t.Parent)
