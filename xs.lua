@@ -1,385 +1,165 @@
--- Touch Fling+ GUI Mejorado
--- Versión mejorada con fling potente, selector visual de jugadores y más funciones troll
+-- Touch fling gui (MEJORADO)
+
+-- Gui to Lua (VIP VERSION)
+-- Version: 6.9
+
+-- Instances:
 
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
-local TitleBar = Instance.new("Frame")
-local TitleLabel = Instance.new("TextLabel")
-local CloseButton = Instance.new("TextButton")
-local HideShowButton = Instance.new("TextButton")
-local ToggleListButton = Instance.new("TextButton")
-local ScrollingFrame = Instance.new("ScrollingFrame")
-local FlingButton = Instance.new("TextButton")
-local HeadsitButton = Instance.new("TextButton")
-local SpinButton = Instance.new("TextButton")
-local AttachButton = Instance.new("TextButton")
-local NoclipButton = Instance.new("TextButton")
-local FreezeButton = Instance.new("TextButton")
-local BringButton = Instance.new("TextButton")
+local Frame_2 = Instance.new("Frame")
+local TextLabel = Instance.new("TextLabel")
+local TextButton = Instance.new("TextButton")
+
+--Properties:
 
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
+print("sub to DuplexScripts")
 
--- Configuración del Frame principal
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
+Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 Frame.BorderSizePixel = 0
-Frame.Position = UDim2.new(0.35, 0, 0.3, 0)
-Frame.Size = UDim2.new(0, 220, 0, 420)
-Frame.Active = true
-Frame.Draggable = true
+Frame.Position = UDim2.new(0.388539821, 0, 0.427821517, 0)
+Frame.Size = UDim2.new(0, 158, 0, 110)
 
--- Barra de título
-TitleBar.Parent = Frame
-TitleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
+Frame_2.Parent = Frame
+Frame_2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Frame_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+Frame_2.BorderSizePixel = 0
+Frame_2.Size = UDim2.new(0, 158, 0, 25)
 
-TitleLabel.Parent = TitleBar
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Size = UDim2.new(0.6, 0, 1, 0)
-TitleLabel.Font = Enum.Font.Sarpanch
-TitleLabel.Text = "Touch Fling+"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 22
+TextLabel.Parent = Frame_2
+TextLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel.BackgroundTransparency = 1.000
+TextLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
+TextLabel.BorderSizePixel = 0
+TextLabel.Position = UDim2.new(0.112792775, 0, -0.0151660154, 0)
+TextLabel.Size = UDim2.new(0, 121, 0, 26)
+TextLabel.Font = Enum.Font.Sarpanch
+TextLabel.Text = "Touch Fling"
+TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel.TextSize = 25.000
 
-CloseButton.Parent = TitleBar
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-CloseButton.Position = UDim2.new(0.85, 0, 0.1, 0)
-CloseButton.Size = UDim2.new(0, 22, 0, 22)
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 18
+TextButton.Parent = Frame
+TextButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+TextButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+TextButton.BorderSizePixel = 0
+TextButton.Position = UDim2.new(0.113924049, 0, 0.418181807, 0)
+TextButton.Size = UDim2.new(0, 121, 0, 37)
+TextButton.Font = Enum.Font.SourceSansItalic
+TextButton.Text = "OFF"
+TextButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+TextButton.TextSize = 20.000
 
-HideShowButton.Parent = TitleBar
-HideShowButton.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-HideShowButton.Position = UDim2.new(0.65, 0, 0.1, 0)
-HideShowButton.Size = UDim2.new(0, 40, 0, 22)
-HideShowButton.Font = Enum.Font.SourceSans
-HideShowButton.Text = "Hide"
-HideShowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-HideShowButton.TextSize = 14
+-- Scripts:
 
-ToggleListButton.Parent = TitleBar
-ToggleListButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
-ToggleListButton.Position = UDim2.new(0.4, 0, 0.1, 0)
-ToggleListButton.Size = UDim2.new(0, 50, 0, 22)
-ToggleListButton.Font = Enum.Font.SourceSans
-ToggleListButton.Text = "List ON"
-ToggleListButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleListButton.TextSize = 13
+local function IIMAWH_fake_script() -- TextButton.LocalScript 
+	local script = Instance.new('LocalScript', TextButton)
 
--- Lista de jugadores con avatares
-ScrollingFrame.Parent = Frame
-ScrollingFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-ScrollingFrame.Position = UDim2.new(0.05, 0, 0.09, 0)
-ScrollingFrame.Size = UDim2.new(0.9, 0, 0.4, 0)
-ScrollingFrame.ScrollBarThickness = 6
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-
--- Botones de funciones
-FlingButton.Parent = Frame
-FlingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-FlingButton.Position = UDim2.new(0.05, 0, 0.52, 0)
-FlingButton.Size = UDim2.new(0.9, 0, 0, 28)
-FlingButton.Font = Enum.Font.SourceSansBold
-FlingButton.Text = "Fling: OFF"
-FlingButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-FlingButton.TextSize = 16
-
-HeadsitButton.Parent = Frame
-HeadsitButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-HeadsitButton.Position = UDim2.new(0.05, 0, 0.59, 0)
-HeadsitButton.Size = UDim2.new(0.9, 0, 0, 28)
-HeadsitButton.Font = Enum.Font.SourceSansBold
-HeadsitButton.Text = "Headsit: ON/OFF"
-HeadsitButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-HeadsitButton.TextSize = 16
-
-SpinButton.Parent = Frame
-SpinButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-SpinButton.Position = UDim2.new(0.05, 0, 0.66, 0)
-SpinButton.Size = UDim2.new(0.9, 0, 0, 28)
-SpinButton.Font = Enum.Font.SourceSansBold
-SpinButton.Text = "Spin: OFF"
-SpinButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-SpinButton.TextSize = 16
-
-AttachButton.Parent = Frame
-AttachButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-AttachButton.Position = UDim2.new(0.05, 0, 0.73, 0)
-AttachButton.Size = UDim2.new(0.9, 0, 0, 28)
-AttachButton.Font = Enum.Font.SourceSansBold
-AttachButton.Text = "Attach: OFF"
-AttachButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-AttachButton.TextSize = 16
-
-NoclipButton.Parent = Frame
-NoclipButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-NoclipButton.Position = UDim2.new(0.05, 0, 0.8, 0)
-NoclipButton.Size = UDim2.new(0.9, 0, 0, 28)
-NoclipButton.Font = Enum.Font.SourceSansBold
-NoclipButton.Text = "Noclip: OFF"
-NoclipButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-NoclipButton.TextSize = 16
-
-FreezeButton.Parent = Frame
-FreezeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-FreezeButton.Position = UDim2.new(0.05, 0, 0.87, 0)
-FreezeButton.Size = UDim2.new(0.9, 0, 0, 28)
-FreezeButton.Font = Enum.Font.SourceSansBold
-FreezeButton.Text = "Freeze: OFF"
-FreezeButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-FreezeButton.TextSize = 16
-
-BringButton.Parent = Frame
-BringButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-BringButton.Position = UDim2.new(0.05, 0, 0.94, 0)
-BringButton.Size = UDim2.new(0.9, 0, 0, 28)
-BringButton.Font = Enum.Font.SourceSansBold
-BringButton.Text = "Bring Target"
-BringButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-BringButton.TextSize = 16
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local lp = Players.LocalPlayer
-local selectedPlayer = nil
-local toggles = {fling = false, headsit = false, spin = false, attach = false, noclip = false, freeze = false}
-local threads = {}
-local noclipConn = nil
-local listVisible = true
-
--- Actualiza la lista de jugadores con avatares
-local function updatePlayerList()
-	ScrollingFrame:ClearAllChildren()
-	local y = 0
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= lp then
-			local playerFrame = Instance.new("Frame")
-			playerFrame.Size = UDim2.new(1, -10, 0, 50)
-			playerFrame.Position = UDim2.new(0, 5, 0, y)
-			playerFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-			playerFrame.Parent = ScrollingFrame
-
-			local avatar = Instance.new("ImageLabel")
-			avatar.Size = UDim2.new(0, 40, 0, 40)
-			avatar.Position = UDim2.new(0, 5, 0.5, -20)
-			avatar.BackgroundTransparency = 1
-			avatar.Image = Players:GetUserThumbnailAsync(plr.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-			avatar.Parent = playerFrame
-
-			local nameLabel = Instance.new("TextLabel")
-			nameLabel.Size = UDim2.new(0.55, 0, 1, 0)
-			nameLabel.Position = UDim2.new(0.28, 0, 0, 0)
-			nameLabel.BackgroundTransparency = 1
-			nameLabel.Text = plr.Name
-			nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-			nameLabel.Parent = playerFrame
-
-			local selectBtn = Instance.new("TextButton")
-			selectBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
-			selectBtn.Position = UDim2.new(0.72, 0, 0.1, 0)
-			selectBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-			selectBtn.Text = "Select"
-			selectBtn.TextColor3 = Color3.fromRGB(255,255,255)
-			selectBtn.Parent = playerFrame
-
-			selectBtn.MouseButton1Click:Connect(function()
-				selectedPlayer = plr
-				for _, f in pairs(ScrollingFrame:GetChildren()) do
-					if f:IsA("Frame") then f.BackgroundColor3 = Color3.fromRGB(60,60,60) end
-				end
-				playerFrame.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-			end)
-
-			y += 55
-		end
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local RunService = game:GetService("RunService")
+	local Players = game:GetService("Players")
+	local lp = Players.LocalPlayer
+	
+	local toggleButton = script.Parent
+	local hiddenfling = false
+	local flingThread 
+	local connection
+	
+	if not ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok") then
+		local detection = Instance.new("Decal")
+		detection.Name = "juisdfj0i32i0eidsuf0iok"
+		detection.Parent = ReplicatedStorage
 	end
-	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, y)
-end
-
-Players.PlayerAdded:Connect(updatePlayerList)
-Players.PlayerRemoving:Connect(updatePlayerList)
-updatePlayerList()
-
--- Fling mejorado: Al tocar a otro jugador lo envía volando muy alto y lejos
-local function powerfulFling()
-	local char = lp.Character
-	if not char then return end
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-
-	local touchConn
-	touchConn = root.Touched:Connect(function(hit)
-		local targetChar = hit.Parent
-		if targetChar then
-			local targetHumanoid = targetChar:FindFirstChild("Humanoid")
-			local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-			if targetHumanoid and targetRoot and Players:GetPlayerFromCharacter(targetChar) then
-				-- Fling potente hacia arriba y en dirección aleatoria
-				targetRoot.Velocity = Vector3.new(math.random(-180,180), 720, math.random(-180,180)) * 7
-			end
+	
+	local function createFlingLoop()
+		if flingThread then
+			coroutine.close(flingThread)
 		end
-	end)
-
-	-- Desconectar después de un corto tiempo para evitar spam
-	task.delay(0.22, function()
-		if touchConn then touchConn:Disconnect() end
-	end)
-end
-
-local function toggleFling()
-	toggles.fling = not toggles.fling
-	FlingButton.Text = toggles.fling and "Fling: ON" or "Fling: OFF"
-	if toggles.fling then
-		if threads.fling then coroutine.close(threads.fling) end
-		threads.fling = coroutine.create(function()
-			while toggles.fling do
-				powerfulFling()
-				task.wait(0.32)
+		
+		flingThread = coroutine.create(function()
+			local movel = 0.1
+			while hiddenfling do
+				RunService.Heartbeat:Wait()
+				
+				local c = lp.Character
+				if not c then continue end
+				
+				local hrp = c:FindFirstChild("HumanoidRootPart")
+				if not hrp then continue end
+				
+				-- Versión más potente (multiplicadores más altos + mejor timing)
+				local vel = hrp.Velocity
+				
+				-- Spike ultra potente
+				hrp.Velocity = vel * 25000 + Vector3.new(0, 25000, 0)
+				RunService.RenderStepped:Wait()
+				
+				-- Reset rápido
+				hrp.Velocity = vel
+				RunService.Stepped:Wait()
+				
+				-- Oscilación mejorada para más estabilidad y potencia
+				hrp.Velocity = vel + Vector3.new(0, movel * 150, 0)
+				movel = -movel
 			end
 		end)
-		coroutine.resume(threads.fling)
+		
+		coroutine.resume(flingThread)
 	end
-end
-
-local function headsitFunc()
-	while toggles.headsit and selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("Head") do
-		local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-		local tHead = selectedPlayer.Character.Head
-		if myRoot and tHead then
-			myRoot.CFrame = tHead.CFrame * CFrame.new(0, 3.2, 0) * CFrame.Angles(math.rad(85), 0, 0)
-		end
-		RunService.Heartbeat:Wait()
+	
+	local function startFling()
+		hiddenfling = true
+		toggleButton.Text = "ON"
+		createFlingLoop()
 	end
-end
-
-local function spinFunc()
-	while toggles.spin do
-		local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-		if root then root.CFrame *= CFrame.Angles(0, math.rad(30), 0) end
-		RunService.Heartbeat:Wait()
-	end
-end
-
-local function attachFunc()
-	while toggles.attach and selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") do
-		local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-		local tRoot = selectedPlayer.Character.HumanoidRootPart
-		if myRoot and tRoot then
-			myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, -4.5)
-		end
-		RunService.Heartbeat:Wait()
-	end
-end
-
-local function toggleNoclip(state)
-	toggles.noclip = state
-	NoclipButton.Text = toggles.noclip and "Noclip: ON" or "Noclip: OFF"
-	if noclipConn then noclipConn:Disconnect() noclipConn = nil end
-	if toggles.noclip then
-		noclipConn = RunService.Stepped:Connect(function()
-			local char = lp.Character
-			if char then
-				for _, part in ipairs(char:GetDescendants()) do
-					if part:IsA("BasePart") then part.CanCollide = false end
-				end
-			end
-		end)
-	else
-		local char = lp.Character
-		if char then
-			for _, part in ipairs(char:GetDescendants()) do
-				if part:IsA("BasePart") then part.CanCollide = true end
-			end
+	
+	local function stopFling()
+		hiddenfling = false
+		toggleButton.Text = "OFF"
+		if flingThread then
+			coroutine.close(flingThread)
+			flingThread = nil
 		end
 	end
+	
+	toggleButton.MouseButton1Click:Connect(function()
+		if hiddenfling then
+			stopFling()
+		else
+			startFling()
+		end
+	end)
+	
+	-- Persistencia total tras respawn / muerte
+	local function onCharacterAdded(char)
+		wait(0.5) -- Pequeño delay para que el personaje cargue completamente
+		if hiddenfling then
+			createFlingLoop()
+		end
+	end
+	
+	lp.CharacterAdded:Connect(onCharacterAdded)
+	
+	-- Si ya hay personaje, inicializar
+	if lp.Character then
+		onCharacterAdded(lp.Character)
+	end
+	
+	-- Cleanup al destruir
+	script.Destroying:Connect(function()
+		stopFling()
+	end)
 end
+coroutine.wrap(IIMAWH_fake_script)()
 
-local function freezeFunc()
-	while toggles.freeze and selectedPlayer and selectedPlayer.Character do
-		local hum = selectedPlayer.Character:FindFirstChild("Humanoid")
-		if hum then hum.PlatformStand = true end
-		RunService.Heartbeat:Wait()
-	end
+local function QCJQJL_fake_script() -- Frame.LocalScript 
+	local script = Instance.new('LocalScript', Frame)
+
+	script.Parent.Active = true
+	script.Parent.Draggable = true
 end
-
-local function bringTarget()
-	if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
-		local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-		local tRoot = selectedPlayer.Character.HumanoidRootPart
-		if myRoot and tRoot then tRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, -5) end
-	end
-end
-
--- Conexiones de botones
-FlingButton.MouseButton1Click:Connect(toggleFling)
-
-HeadsitButton.MouseButton1Click:Connect(function()
-	toggles.headsit = not toggles.headsit
-	HeadsitButton.Text = toggles.headsit and "Headsit: ON" or "Headsit: OFF"
-	if toggles.headsit then
-		if threads.headsit then coroutine.close(threads.headsit) end
-		threads.headsit = coroutine.create(headsitFunc)
-		coroutine.resume(threads.headsit)
-	end
-end)
-
-SpinButton.MouseButton1Click:Connect(function()
-	toggles.spin = not toggles.spin
-	SpinButton.Text = toggles.spin and "Spin: ON" or "Spin: OFF"
-	if toggles.spin then
-		if threads.spin then coroutine.close(threads.spin) end
-		threads.spin = coroutine.create(spinFunc)
-		coroutine.resume(threads.spin)
-	end
-end)
-
-AttachButton.MouseButton1Click:Connect(function()
-	toggles.attach = not toggles.attach
-	AttachButton.Text = toggles.attach and "Attach: ON" or "Attach: OFF"
-	if toggles.attach then
-		if threads.attach then coroutine.close(threads.attach) end
-		threads.attach = coroutine.create(attachFunc)
-		coroutine.resume(threads.attach)
-	end
-end)
-
-NoclipButton.MouseButton1Click:Connect(function() toggleNoclip(not toggles.noclip) end)
-
-FreezeButton.MouseButton1Click:Connect(function()
-	toggles.freeze = not toggles.freeze
-	FreezeButton.Text = toggles.freeze and "Freeze: ON" or "Freeze: OFF"
-	if toggles.freeze then
-		if threads.freeze then coroutine.close(threads.freeze) end
-		threads.freeze = coroutine.create(freezeFunc)
-		coroutine.resume(threads.freeze)
-	end
-end)
-
-BringButton.MouseButton1Click:Connect(bringTarget)
-
-CloseButton.MouseButton1Click:Connect(function()
-	ScreenGui:Destroy()
-end)
-
-HideShowButton.MouseButton1Click:Connect(function()
-	Frame.Visible = not Frame.Visible
-	HideShowButton.Text = Frame.Visible and "Hide" or "Show"
-end)
-
-ToggleListButton.MouseButton1Click:Connect(function()
-	listVisible = not listVisible
-	ScrollingFrame.Visible = listVisible
-	ToggleListButton.Text = listVisible and "List ON" or "List OFF"
-end)
-
--- Restaurar noclip al respawnear
-lp.CharacterAdded:Connect(function()
-	task.wait(0.8)
-	if toggles.noclip then toggleNoclip(true) end
-end)
+coroutine.wrap(QCJQJL_fake_script)()
