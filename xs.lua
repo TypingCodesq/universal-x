@@ -1,4 +1,6 @@
 -- Touch Fling+ GUI Mejorado
+-- Versión mejorada con fling potente, selector visual de jugadores y más funciones troll
+
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 local TitleBar = Instance.new("Frame")
@@ -19,6 +21,7 @@ ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
 
+-- Configuración del Frame principal
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
 Frame.BorderSizePixel = 0
@@ -27,6 +30,7 @@ Frame.Size = UDim2.new(0, 220, 0, 420)
 Frame.Active = true
 Frame.Draggable = true
 
+-- Barra de título
 TitleBar.Parent = Frame
 TitleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 TitleBar.BorderSizePixel = 0
@@ -67,6 +71,7 @@ ToggleListButton.Text = "List ON"
 ToggleListButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleListButton.TextSize = 13
 
+-- Lista de jugadores con avatares
 ScrollingFrame.Parent = Frame
 ScrollingFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 ScrollingFrame.Position = UDim2.new(0.05, 0, 0.09, 0)
@@ -74,6 +79,7 @@ ScrollingFrame.Size = UDim2.new(0.9, 0, 0.4, 0)
 ScrollingFrame.ScrollBarThickness = 6
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 
+-- Botones de funciones
 FlingButton.Parent = Frame
 FlingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
 FlingButton.Position = UDim2.new(0.05, 0, 0.52, 0)
@@ -88,7 +94,7 @@ HeadsitButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 HeadsitButton.Position = UDim2.new(0.05, 0, 0.59, 0)
 HeadsitButton.Size = UDim2.new(0.9, 0, 0, 28)
 HeadsitButton.Font = Enum.Font.SourceSansBold
-HeadsitButton.Text = "Headsit: OFF"
+HeadsitButton.Text = "Headsit: ON/OFF"
 HeadsitButton.TextColor3 = Color3.fromRGB(0, 0, 0)
 HeadsitButton.TextSize = 16
 
@@ -146,6 +152,7 @@ local threads = {}
 local noclipConn = nil
 local listVisible = true
 
+-- Actualiza la lista de jugadores con avatares
 local function updatePlayerList()
 	ScrollingFrame:ClearAllChildren()
 	local y = 0
@@ -199,6 +206,7 @@ Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 updatePlayerList()
 
+-- Fling mejorado: Al tocar a otro jugador lo envía volando muy alto y lejos
 local function powerfulFling()
 	local char = lp.Character
 	if not char then return end
@@ -212,12 +220,14 @@ local function powerfulFling()
 			local targetHumanoid = targetChar:FindFirstChild("Humanoid")
 			local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
 			if targetHumanoid and targetRoot and Players:GetPlayerFromCharacter(targetChar) then
-				targetRoot.Velocity = Vector3.new(math.random(-150,150), 650, math.random(-150,150)) * 6
+				-- Fling potente hacia arriba y en dirección aleatoria
+				targetRoot.Velocity = Vector3.new(math.random(-180,180), 720, math.random(-180,180)) * 7
 			end
 		end
 	end)
 
-	task.delay(0.25, function()
+	-- Desconectar después de un corto tiempo para evitar spam
+	task.delay(0.22, function()
 		if touchConn then touchConn:Disconnect() end
 	end)
 end
@@ -230,7 +240,7 @@ local function toggleFling()
 		threads.fling = coroutine.create(function()
 			while toggles.fling do
 				powerfulFling()
-				task.wait(0.35)
+				task.wait(0.32)
 			end
 		end)
 		coroutine.resume(threads.fling)
@@ -306,6 +316,7 @@ local function bringTarget()
 	end
 end
 
+-- Conexiones de botones
 FlingButton.MouseButton1Click:Connect(toggleFling)
 
 HeadsitButton.MouseButton1Click:Connect(function()
@@ -367,6 +378,7 @@ ToggleListButton.MouseButton1Click:Connect(function()
 	ToggleListButton.Text = listVisible and "List ON" or "List OFF"
 end)
 
+-- Restaurar noclip al respawnear
 lp.CharacterAdded:Connect(function()
 	task.wait(0.8)
 	if toggles.noclip then toggleNoclip(true) end
