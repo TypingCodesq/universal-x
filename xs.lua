@@ -455,15 +455,23 @@ local function waitUntilFree()
     return false
 end
 
-local function tapAction()
+local function findActionButton()
     local current = LocalPlayer:WaitForChild("PlayerGui")
-    for seg in string.gmatch("Survivor-mob.Controls.action.check", "[^%.]+") do
-        current = current and current:FindFirstChild(seg)
+    local path = "Survivor-mob.Controls.action.check"
+    for seg in string.gmatch(path, "[^%.]+") do
+        if current then
+            current = current:FindFirstChild(seg)
+        end
     end
-    if current and current:IsA("GuiObject") then
+    return current
+end
+
+local function tapAction()
+    local btn = findActionButton()
+    if btn and btn:IsA("GuiObject") then
         log("INFO", "Action button found, tapping...")
-        local pos = current.AbsolutePosition
-        local size = current.AbsoluteSize
+        local pos = btn.AbsolutePosition
+        local size = btn.AbsoluteSize
         local ins = GuiService:GetGuiInset()
         local cx, cy = pos.X + size.X/2 + ins.X, pos.Y + size.Y/2 + ins.Y
         pcall(function()
@@ -471,61 +479,17 @@ local function tapAction()
             task.wait(0.02)
             VirtualInputManager:SendTouchEvent(8822, 2, cx, cy)
         end)
+        return true
     else
         log("ERROR", "Action button not found!")
+        return false
     end
-end
-
-local autoSkill = false
-local skConn
-
-local function startAutoSkill()
-    if autoSkill then return end
-    autoSkill = true
-    log("INFO", "Auto Skillcheck ON")
-    
-    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if not prompt then log("ERROR", "SkillCheckPromptGui missing") return end
-    local check = prompt:WaitForChild("Check", 10)
-    if not check then return end
-    
-    skConn = check:GetPropertyChangedSignal("Visible"):Connect(function()
-        if not autoSkill or not check.Visible then return end
-        local char = LocalPlayer.Character
-        if not char or isCharacterBusy(char) then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        
-        local nearGen, genModel, genPoint
-        for _, g in pairs(getGenerators()) do
-            for i = 1, 4 do
-                local pt = g:FindFirstChild("GeneratorPoint" .. i)
-                if pt and (root.Position - pt.Position).Magnitude < 10 then
-                    nearGen = true
-                    genModel = g
-                    genPoint = pt
-                    break
-                end
-            end
-            if nearGen then break end
-        end
-        
-        if nearGen and genModel and genPoint and genRemote then
-            genRemote:FireServer("success", 1, genModel, genPoint)
-        elseif healRemote then
-            healRemote:FireServer("success", 1, char)
-        end
-    end)
-end
-
-local function stopAutoSkill()
-    autoSkill = false
-    if skConn then skConn:Disconnect() skConn = nil end
-    log("INFO", "Auto Skillcheck OFF")
 end
 
 local autoGen = false
 local genConn
+local currentGen = nil
+local currentPoint = nil
 
 local function getClosestGenPoint()
     local char = LocalPlayer.Character
@@ -552,10 +516,23 @@ local function getClosestGenPoint()
     return bestGen, bestPoint
 end
 
+local function completeSkillcheck(gen, point)
+    if not genRemote then return false end
+    local ok, err = pcall(function()
+        genRemote:FireServer("success", 1, gen, point)
+    end)
+    if ok then
+        log("SUCCESS", "Skillcheck completed!")
+    else
+        log("ERROR", "Fire gen remote: ".. tostring(err))
+    end
+    return ok
+end
+
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    log("INFO", "Auto Generator ON (Tap + Auto Skillcheck)")
+    log("INFO", "Auto Generator ON (Integrated Perfect Skillcheck)")
     
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -563,6 +540,7 @@ local function startAutoGen()
             return
         end
         
+        -- Wait until character is free
         if not waitUntilFree() then return end
         
         local char = LocalPlayer.Character
@@ -570,39 +548,58 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
         
-        local gen, point = getClosestGenPoint()
-        if not gen or not point then return end
+        -- If we already have a target and it's still incomplete, continue with it
+        if currentGen and currentPoint and genProgress(currentGen) < 1 then
+            -- Check if skillcheck UI is visible
+            local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+            local check = prompt and prompt:WaitForChild("Check", 10)
+            if check and check.Visible then
+                completeSkillcheck(currentGen, currentPoint)
+                task.wait(0.3)
+                return
+            else
+                -- Maybe we need to tap again to start a new skillcheck
+                tapAction()
+                task.wait(0.5)
+                return
+            end
+        end
         
-        -- Check if already repairing (skillcheck UI visible and belongs to this generator)
-        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-        local check = prompt and prompt:WaitForChild("Check", 10)
-        if check and check.Visible then
-            -- Already repairing something, let auto skillcheck handle it
+        -- Find new generator
+        local gen, point = getClosestGenPoint()
+        if not gen or not point then
+            currentGen = nil
+            currentPoint = nil
             return
         end
         
-        -- Teleport to point
-        root.CFrame = CFrame.new(point.Position + Vector3.new(0, 3, 0)) -- slightly above
+        currentGen = gen
+        currentPoint = point
+        
+        log("INFO", "Moving to generator point...")
+        root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
         task.wait(0.3)
         
-        -- Tap action button to start repairing
-        tapAction()
-        
-        -- Wait for skillcheck UI to appear
-        local start = tick()
-        while autoGen and genProgress(gen) < 1 and tick() - start < 5 do
-            if check and check.Visible then
-                -- Auto skillcheck will fire the remote automatically
+        -- Tap to start repair
+        if tapAction() then
+            -- Wait for skillcheck UI to appear
+            local start = tick()
+            while autoGen and genProgress(gen) < 1 and tick() - start < 5 do
+                local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+                local check = prompt and prompt:WaitForChild("Check", 10)
+                if check and check.Visible then
+                    completeSkillcheck(gen, point)
+                    task.wait(0.3)
+                    break
+                end
                 task.wait(0.1)
-            else
-                -- If UI didn't appear, maybe need to tap again
-                tapAction()
-                task.wait(0.5)
             end
         end
         
         if genProgress(gen) >= 1 then
             log("SUCCESS", "Generator completed!")
+            currentGen = nil
+            currentPoint = nil
         end
     end)
 end
@@ -610,6 +607,8 @@ end
 local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
+    currentGen = nil
+    currentPoint = nil
     log("INFO", "Auto Generator OFF")
 end
 
@@ -894,7 +893,6 @@ end)
 
 sec(Survivor, "GENERATOR")
 toggle(Survivor, "Auto Generator", false, function(v) if v then startAutoGen() else stopAutoGen() end end)
-toggle(Survivor, "Auto Skillcheck", false, function(v) if v then startAutoSkill() else stopAutoSkill() end end)
 sec(Survivor, "HEALING")
 toggle(Survivor, "Self Heal", false, function(v) if v then startSelfHeal() else stopSelfHeal() end end)
 toggle(Survivor, "Team Heal", false, function(v) if v then startTeamHeal() else stopTeamHeal() end end)
@@ -943,4 +941,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Auto Generator with Tap + Perfect Skillcheck")
+log("SUCCESS", "VD Mini loaded – Auto Generator 100% perfect")
