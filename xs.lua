@@ -471,7 +471,7 @@ local function tapAction()
     end
 end
 
--- Perfect Skillcheck Monitor (always hits perfect)
+-- Perfect Skillcheck Monitor
 local function isInPerfectZone()
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
     if not prompt then return false end
@@ -488,13 +488,14 @@ local function isInPerfectZone()
     return (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se)
 end
 
--- Auto Generator: Rapid multi-point start + perfect skillcheck
+-- Simple, safe Auto Generator: one tap, then perfect skillcheck
 local autoGen = false
 local genConn = nil
 local skillCheckConn = nil
 local currentGen = nil
-local currentPoints = {}
-local rapidPhaseDone = false
+local currentPoint = nil
+local lastTapTime = 0
+local TAP_COOLDOWN = 2.0
 
 local function findNewGenerator()
     local char = LocalPlayer.Character
@@ -502,34 +503,30 @@ local function findNewGenerator()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local bestGen, bestDist, bestPts = nil, math.huge, {}
+    local bestGen, bestPoint, bestDist = nil, nil, math.huge
     for _, g in pairs(getGenerators()) do
         if genProgress(g) < 1 then
-            local pts = {}
             for i = 1, 4 do
                 local p = g:FindFirstChild("GeneratorPoint" .. i)
-                if p then table.insert(pts, p) end
-            end
-            if #pts >= 1 then
-                for _, p in pairs(pts) do
+                if p then
                     local d = (root.Position - p.Position).Magnitude
                     if d < bestDist then
                         bestDist = d
                         bestGen = g
-                        bestPts = pts
+                        bestPoint = p
                     end
                 end
             end
         end
     end
-    return bestGen, bestPts
+    return bestGen, bestPoint
 end
 
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    rapidPhaseDone = false
-    log("INFO", "Auto Generator ON (Rapid Start + Perfect Skillcheck)")
+    lastTapTime = 0
+    log("INFO", "Auto Generator ON (Safe One‑Tap + Perfect Skillcheck)")
 
     -- Connect skillcheck perfect tapper
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
@@ -559,43 +556,26 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        -- If no generator or current completed, pick next
+        -- Find new generator if current is done or not set
         if not currentGen or genProgress(currentGen) >= 1 then
-            local gen, pts = findNewGenerator()
+            local gen, point = findNewGenerator()
             if not gen then return end
             currentGen = gen
-            currentPoints = pts
-            rapidPhaseDone = false
+            currentPoint = point
         end
 
-        -- Rapid multi-point start phase
-        if not rapidPhaseDone and #currentPoints >= 2 then
-            -- Point 1
-            root.CFrame = CFrame.new(currentPoints[1].Position + Vector3.new(1.5, 0, 0))
+        -- If skillcheck is visible, do nothing (the monitor handles it)
+        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+        local check = prompt and prompt:WaitForChild("Check", 10)
+        if check and check.Visible then return end
+
+        -- Only tap if cooldown passed
+        if (tick() - lastTapTime) >= TAP_COOLDOWN then
+            root.CFrame = CFrame.new(currentPoint.Position + Vector3.new(1.5, 0, 0))
             task.wait(0.2)
             tapAction()
-            task.wait(0.15)
-            -- Point 2
-            root.CFrame = CFrame.new(currentPoints[2].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.15)
-            tapAction()
-            task.wait(0.15)
-            -- Point 3 (if exists)
-            if currentPoints[3] then
-                root.CFrame = CFrame.new(currentPoints[3].Position + Vector3.new(1.5, 0, 0))
-                task.wait(0.15)
-                tapAction()
-                task.wait(0.15)
-            end
-            -- Return to point 1 for the rest
-            root.CFrame = CFrame.new(currentPoints[1].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.1)
-            rapidPhaseDone = true
-            log("INFO", "Rapid phase complete, staying on point 1")
-        elseif rapidPhaseDone then
-            -- Wait for skillcheck to appear and be handled by the monitor
-            -- No action needed; the skillCheckConn will tap when perfect
-            task.wait(0.1)
+            lastTapTime = tick()
+            log("INFO", "Tapped to start repair")
         end
     end)
 end
@@ -605,8 +585,7 @@ local function stopAutoGen()
     if genConn then genConn:Disconnect() genConn = nil end
     if skillCheckConn then skillCheckConn:Disconnect() skillCheckConn = nil end
     currentGen = nil
-    currentPoints = {}
-    rapidPhaseDone = false
+    currentPoint = nil
     log("INFO", "Auto Generator OFF")
 end
 
@@ -939,4 +918,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Rapid 3‑Point Start + Perfect Skillcheck")
+log("SUCCESS", "VD Mini loaded – Safe One‑Tap Gen")
