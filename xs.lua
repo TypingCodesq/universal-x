@@ -455,7 +455,27 @@ local function waitUntilFree()
     return false
 end
 
--- Auto Skillcheck
+local function tapAction()
+    local current = LocalPlayer:WaitForChild("PlayerGui")
+    for seg in string.gmatch("Survivor-mob.Controls.action.check", "[^%.]+") do
+        current = current and current:FindFirstChild(seg)
+    end
+    if current and current:IsA("GuiObject") then
+        log("INFO", "Action button found, tapping...")
+        local pos = current.AbsolutePosition
+        local size = current.AbsoluteSize
+        local ins = GuiService:GetGuiInset()
+        local cx, cy = pos.X + size.X/2 + ins.X, pos.Y + size.Y/2 + ins.Y
+        pcall(function()
+            VirtualInputManager:SendTouchEvent(8822, 0, cx, cy)
+            task.wait(0.02)
+            VirtualInputManager:SendTouchEvent(8822, 2, cx, cy)
+        end)
+    else
+        log("ERROR", "Action button not found!")
+    end
+end
+
 local autoSkill = false
 local skConn
 
@@ -504,7 +524,6 @@ local function stopAutoSkill()
     log("INFO", "Auto Skillcheck OFF")
 end
 
--- Simplified Auto Generator – just one point, repeat until 100%
 local autoGen = false
 local genConn
 
@@ -533,20 +552,10 @@ local function getClosestGenPoint()
     return bestGen, bestPoint
 end
 
-local function fireGenRemote(gen, point)
-    if not genRemote then return false end
-    if not waitUntilFree() then return false end
-    local ok, err = pcall(function()
-        genRemote:FireServer("success", 1, gen, point)
-    end)
-    if not ok then log("ERROR", "Fire gen remote: "..tostring(err)) end
-    return ok
-end
-
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    log("INFO", "Auto Generator ON (Single Point Perfect)")
+    log("INFO", "Auto Generator ON (Tap + Auto Skillcheck)")
     
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -564,21 +573,35 @@ local function startAutoGen()
         local gen, point = getClosestGenPoint()
         if not gen or not point then return end
         
-        -- Teleport to the point
-        root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
-        task.wait(0.2)
-        
-        -- Keep firing until generator is full
-        local prog = genProgress(gen)
-        log("INFO", "Starting generator repair, current progress: " .. math.floor(prog*100) .. "%")
-        while autoGen and prog < 1 do
-            if not waitUntilFree() then break end
-            fireGenRemote(gen, point)
-            task.wait(0.5)
-            prog = genProgress(gen)
+        -- Check if already repairing (skillcheck UI visible and belongs to this generator)
+        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+        local check = prompt and prompt:WaitForChild("Check", 10)
+        if check and check.Visible then
+            -- Already repairing something, let auto skillcheck handle it
+            return
         end
         
-        if prog >= 1 then
+        -- Teleport to point
+        root.CFrame = CFrame.new(point.Position + Vector3.new(0, 3, 0)) -- slightly above
+        task.wait(0.3)
+        
+        -- Tap action button to start repairing
+        tapAction()
+        
+        -- Wait for skillcheck UI to appear
+        local start = tick()
+        while autoGen and genProgress(gen) < 1 and tick() - start < 5 do
+            if check and check.Visible then
+                -- Auto skillcheck will fire the remote automatically
+                task.wait(0.1)
+            else
+                -- If UI didn't appear, maybe need to tap again
+                tapAction()
+                task.wait(0.5)
+            end
+        end
+        
+        if genProgress(gen) >= 1 then
             log("SUCCESS", "Generator completed!")
         end
     end)
@@ -920,4 +943,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Simple Perfect Gen")
+log("SUCCESS", "VD Mini loaded – Auto Generator with Tap + Perfect Skillcheck")
