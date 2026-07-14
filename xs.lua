@@ -13,21 +13,15 @@ local Workspace = game:GetService("Workspace")
 
 local function log(level, msg)
     local prefix = "[" .. level .. "] "
-    if level == "ERROR" then
-        warn(prefix .. msg)
-    elseif level == "INFO" then
-        print(prefix .. msg)
-    elseif level == "SUCCESS" then
-        print(prefix .. "✓ " .. msg)
-    end
+    if level == "ERROR" then warn(prefix .. msg)
+    elseif level == "INFO" then print(prefix .. msg)
+    elseif level == "SUCCESS" then print(prefix .. "✓ " .. msg) end
 end
 
 local function errHandler(func, name)
     return function(...)
         local ok, res = pcall(func, ...)
-        if not ok then
-            log("ERROR", name .. " failed: " .. tostring(res))
-        end
+        if not ok then log("ERROR", name .. " failed: " .. tostring(res)) end
         return res
     end
 end
@@ -37,779 +31,296 @@ if not isMobile then
     local vp = Camera.ViewportSize
     isMobile = math.min(vp.X, vp.Y) < 600
 end
-log("INFO", "Device mode: " .. (isMobile and "MOBILE" or "DESKTOP"))
+log("INFO", "Device: " .. (isMobile and "MOBILE" or "DESKTOP"))
 
 local Theme = {
-    Background = Color3.fromRGB(22, 22, 26),
-    Sidebar = Color3.fromRGB(28, 28, 34),
-    Panel = Color3.fromRGB(32, 32, 38),
-    Accent = Color3.fromRGB(90, 130, 255),
-    Text = Color3.fromRGB(235, 235, 240),
-    SubText = Color3.fromRGB(160, 160, 170),
-    Stroke = Color3.fromRGB(45, 45, 52),
+    Bg = Color3.fromRGB(18, 18, 22),
+    Side = Color3.fromRGB(24, 24, 30),
+    Panel = Color3.fromRGB(28, 28, 34),
+    Accent = Color3.fromRGB(100, 140, 255),
+    Text = Color3.fromRGB(230, 230, 240),
+    Sub = Color3.fromRGB(150, 150, 165),
+    Stroke = Color3.fromRGB(40, 40, 50),
 }
 
 local FONT = Enum.Font.GothamBold
 local FONT_BODY = Enum.Font.Gotham
-local BTN_HEIGHT = isMobile and 36 or 30
-local FONT_SIZE = isMobile and 13 or 12
-local FRAME_W = isMobile and 360 or 320
-local FRAME_H = isMobile and 560 or 500
+local BTN_H = isMobile and 32 or 28
+local FONT_SZ = isMobile and 12 or 11
+local W = isMobile and 290 or 300
+local H = isMobile and 440 or 460
 
 local function create(class, props)
     local inst = Instance.new(class)
-    for k, v in pairs(props or {}) do
-        pcall(function() inst[k] = v end)
-    end
+    for k, v in pairs(props or {}) do pcall(function() inst[k] = v end) end
     return inst
 end
 
-local ScreenGui = create("ScreenGui", {
-    Name = "VDUnified",
-    ResetOnSpawn = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    Parent = CoreGui,
+local ScreenGui = create("ScreenGui", {Name="VDMini",ResetOnSpawn=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,Parent=CoreGui})
+
+-- floating icon (show/hide)
+local FloatIcon = create("ImageButton", {
+    Size = UDim2.new(0,48,0,48), Position = UDim2.new(0,16,0,16),
+    BackgroundColor3 = Theme.Panel, Image = "", Visible = false, Parent = ScreenGui,
 })
-log("SUCCESS", "ScreenGui created")
+Instance.new("UICorner",FloatIcon).CornerRadius=UDim.new(1,0)
+Instance.new("UIStroke",FloatIcon).Color=Theme.Accent; FloatIcon.UIStroke.Thickness=1.5
+create("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="VD",Font=FONT,TextSize=16,TextColor3=Theme.Accent,Parent=FloatIcon})
 
-local MinimizedIcon = create("ImageButton", {
-    Size = UDim2.new(0, 56, 0, 56),
-    Position = UDim2.new(0, 20, 0, 20),
-    BackgroundColor3 = Theme.Panel,
-    Image = "",
-    Visible = false,
-    Parent = ScreenGui,
+local Main = create("Frame", {
+    Size = UDim2.new(0,W,0,H), Position = UDim2.new(0.5,-W/2,0.5,-H/2),
+    BackgroundColor3 = Theme.Bg, ClipsDescendants = true, Parent = ScreenGui,
 })
-local iconCorner = Instance.new("UICorner")
-iconCorner.CornerRadius = UDim.new(1, 0)
-iconCorner.Parent = MinimizedIcon
-local iconStroke = Instance.new("UIStroke")
-iconStroke.Color = Theme.Accent
-iconStroke.Thickness = 2
-iconStroke.Parent = MinimizedIcon
-create("TextLabel", {
-    Size = UDim2.new(1, 0, 1, 0),
-    BackgroundTransparency = 1,
-    Text = "VD",
-    Font = FONT,
-    TextSize = 18,
-    TextColor3 = Theme.Accent,
-    Parent = MinimizedIcon,
+Instance.new("UICorner",Main).CornerRadius=UDim.new(0,10)
+Instance.new("UIStroke",Main).Color=Theme.Stroke; Main.UIStroke.Thickness=1
+
+-- draggable top bar (full width, fixed height)
+local DragBar = create("Frame", {
+    Size = UDim2.new(1,0,0,36), BackgroundColor3 = Theme.Side, Parent = Main,
 })
+Instance.new("UICorner",DragBar).CornerRadius=UDim.new(0,10)
+create("Frame",{Size=UDim2.new(1,0,0,10),Position=UDim2.new(0,0,1,-10),BackgroundColor3=Theme.Side,BorderSizePixel=0,Parent=DragBar})
+create("TextLabel",{Text="VD SCRIPT",Font=FONT,TextSize=13,TextColor3=Theme.Text,BackgroundTransparency=1,Position=UDim2.new(0,10,0,0),Size=UDim2.new(1,-80,1,0),TextXAlignment=Enum.TextXAlignment.Left,Parent=DragBar})
 
-local MainFrame = create("Frame", {
-    Name = "Main",
-    Size = UDim2.new(0, FRAME_W, 0, FRAME_H),
-    Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2),
-    BackgroundColor3 = Theme.Background,
-    ClipsDescendants = true,
-    Parent = ScreenGui,
-})
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = MainFrame
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Theme.Stroke
-mainStroke.Thickness = 1
-mainStroke.Parent = MainFrame
+-- hide button (minimize)
+local HideBtn = create("TextButton",{Text="–",Font=FONT,TextSize=18,TextColor3=Theme.Sub,BackgroundTransparency=1,Size=UDim2.new(0,36,1,0),Position=UDim2.new(1,-72,0,0),Parent=DragBar})
+HideBtn.MouseButton1Click:Connect(function() Main.Visible=false; FloatIcon.Visible=true end)
+-- close button
+local CloseBtn = create("TextButton",{Text="✕",Font=FONT,TextSize=14,TextColor3=Color3.fromRGB(255,100,100),BackgroundTransparency=1,Size=UDim2.new(0,36,1,0),Position=UDim2.new(1,-36,0,0),Parent=DragBar})
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
-local TopBar = create("Frame", {
-    Size = UDim2.new(1, 0, 0, 42),
-    BackgroundColor3 = Theme.Sidebar,
-    Parent = MainFrame,
-})
-local topCorner = Instance.new("UICorner")
-topCorner.CornerRadius = UDim.new(0, 12)
-topCorner.Parent = TopBar
-create("Frame", {
-    Size = UDim2.new(1, 0, 0, 12),
-    Position = UDim2.new(0, 0, 1, -12),
-    BackgroundColor3 = Theme.Sidebar,
-    BorderSizePixel = 0,
-    Parent = TopBar,
-})
+FloatIcon.MouseButton1Click:Connect(function() FloatIcon.Visible=false; Main.Visible=true; Main.Size=UDim2.new(0,0,0,0); TweenService:Create(Main,TweenInfo.new(0.2,Enum.EasingStyle.Quint),{Size=UDim2.new(0,W,0,H)}):Play() end)
 
-create("TextLabel", {
-    Text = "VIOLENCE DISTRICT",
-    Font = FONT,
-    TextSize = isMobile and 14 or 13,
-    TextColor3 = Theme.Text,
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0, 12, 0, 0),
-    Size = UDim2.new(1, -100, 1, 0),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    Parent = TopBar,
-})
-
-local MinBtn = create("TextButton", {
-    Text = "–",
-    Font = FONT,
-    TextSize = 20,
-    TextColor3 = Theme.SubText,
-    BackgroundTransparency = 1,
-    Size = UDim2.new(0, 40, 1, 0),
-    Position = UDim2.new(1, -82, 0, 0),
-    Parent = TopBar,
-})
-
-local CloseBtn = create("TextButton", {
-    Text = "✕",
-    Font = FONT,
-    TextSize = 16,
-    TextColor3 = Color3.fromRGB(255, 100, 100),
-    BackgroundTransparency = 1,
-    Size = UDim2.new(0, 40, 1, 0),
-    Position = UDim2.new(1, -42, 0, 0),
-    Parent = TopBar,
-})
-
-MinimizedIcon.MouseButton1Click:Connect(function()
-    MinimizedIcon.Visible = false
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Size = UDim2.new(0, FRAME_W, 0, FRAME_H)}):Play()
-end)
-
-MinBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    MinimizedIcon.Visible = true
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-    log("INFO", "UI destroyed by user")
-end)
-
-local TabBar = create("Frame", {
-    Size = UDim2.new(1, 0, 0, 34),
-    Position = UDim2.new(0, 0, 0, 42),
-    BackgroundColor3 = Theme.Panel,
-    Parent = MainFrame,
-})
-
-local tabButtons = {}
-local currentTab = nil
-
+-- tab bar
+local TabBar = create("Frame",{Size=UDim2.new(1,0,0,30),Position=UDim2.new(0,0,0,36),BackgroundColor3=Theme.Panel,Parent=Main})
+local tabs={}
+local currentTab=nil
 local function addTab(name)
-    local btn = create("TextButton", {
-        Text = name,
-        Font = FONT_BODY,
-        TextSize = 12,
-        TextColor3 = Theme.SubText,
-        BackgroundColor3 = Theme.Panel,
-        Size = UDim2.new(0, 70, 1, -4),
-        Position = UDim2.new(0, 4 + (#tabButtons * 74), 0, 2),
-        Parent = TabBar,
-    })
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = btn
-
-    local page = create("ScrollingFrame", {
-        Size = UDim2.new(1, -12, 1, -80),
-        Position = UDim2.new(0, 6, 0, 80),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ScrollBarThickness = 4,
-        ScrollBarImageColor3 = Theme.Accent,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        Visible = #tabButtons == 0,
-        Parent = MainFrame,
-    })
-    local pageLayout = create("UIListLayout", {
-        Padding = UDim.new(0, 6),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = page,
-    })
-    pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 12)
-    end)
-
+    local btn=create("TextButton",{Text=name,Font=FONT_BODY,TextSize=11,TextColor3=Theme.Sub,BackgroundColor3=Theme.Panel,Size=UDim2.new(0,60,1,-4),Position=UDim2.new(0,4+(#tabs*64),0,2),Parent=TabBar})
+    Instance.new("UICorner",btn).CornerRadius=UDim.new(0,5)
+    local page=create("ScrollingFrame",{Size=UDim2.new(1,-8,1,-70),Position=UDim2.new(0,4,0,70),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=Theme.Accent,CanvasSize=UDim2.new(0,0,0,0),Visible=#tabs==0,Parent=Main})
+    local lay=create("UIListLayout",{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder,Parent=page})
+    lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() page.CanvasSize=UDim2.new(0,0,0,lay.AbsoluteContentSize.Y+10) end)
     btn.MouseButton1Click:Connect(function()
-        if currentTab then
-            currentTab.btn.BackgroundColor3 = Theme.Panel
-            currentTab.btn.TextColor3 = Theme.SubText
-            currentTab.page.Visible = false
-        end
-        currentTab = {btn = btn, page = page}
-        btn.BackgroundColor3 = Theme.Accent
-        btn.TextColor3 = Theme.Text
-        page.Visible = true
+        if currentTab then currentTab.btn.BackgroundColor3=Theme.Panel; currentTab.btn.TextColor3=Theme.Sub; currentTab.page.Visible=false end
+        currentTab={btn=btn,page=page}; btn.BackgroundColor3=Theme.Accent; btn.TextColor3=Theme.Text; page.Visible=true
     end)
-
-    table.insert(tabButtons, btn)
-    if #tabButtons == 1 then
-        currentTab = {btn = btn, page = page}
-        btn.BackgroundColor3 = Theme.Accent
-        btn.TextColor3 = Theme.Text
-    end
+    table.insert(tabs,btn)
+    if #tabs==1 then currentTab={btn=btn,page=page}; btn.BackgroundColor3=Theme.Accent; btn.TextColor3=Theme.Text end
     return page
 end
 
-local SurvivorPage = addTab("Survivor")
-local KillerPage = addTab("Killer")
-local ESPPage = addTab("ESP")
-local MovePage = addTab("Move")
-local MiscPage = addTab("Misc")
+local Survivor=addTab("Survivor")
+local Killer=addTab("Killer")
+local Esp=addTab("ESP")
+local Move=addTab("Move")
+local Misc=addTab("Misc")
 
-local function addSection(page, text)
-    local frame = create("Frame", {
-        Size = UDim2.new(1, -8, 0, 22),
-        BackgroundTransparency = 1,
-        LayoutOrder = #page:GetChildren(),
-        Parent = page,
-    })
-    create("TextLabel", {
-        Text = text,
-        Font = FONT,
-        TextSize = FONT_SIZE - 1,
-        TextColor3 = Theme.Accent,
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 1, 0),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = frame,
-    })
+-- helpers
+local function sec(page,txt)
+    local f=create("Frame",{Size=UDim2.new(1,-6,0,18),BackgroundTransparency=1,LayoutOrder=#page:GetChildren(),Parent=page})
+    create("TextLabel",{Text=txt,Font=FONT,TextSize=FONT_SZ-1,TextColor3=Theme.Accent,BackgroundTransparency=1,Size=UDim2.new(1,0,1,0),TextXAlignment=Enum.TextXAlignment.Left,Parent=f})
 end
-
-local function addToggle(page, text, default, callback)
-    local state = default
-    local holder = create("Frame", {
-        Size = UDim2.new(1, -8, 0, BTN_HEIGHT),
-        BackgroundColor3 = Color3.fromRGB(28, 28, 34),
-        LayoutOrder = #page:GetChildren(),
-        Parent = page,
-    })
-    local hc = Instance.new("UICorner")
-    hc.CornerRadius = UDim.new(0, 8)
-    hc.Parent = holder
-
-    create("TextLabel", {
-        Text = text,
-        Font = FONT_BODY,
-        TextSize = FONT_SIZE,
-        TextColor3 = Theme.Text,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 10, 0, 0),
-        Size = UDim2.new(1, -70, 1, 0),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = holder,
-    })
-
-    local switch = create("TextButton", {
-        Text = "",
-        Size = UDim2.new(0, 44, 0, 22),
-        Position = UDim2.new(1, -54, 0.5, -11),
-        BackgroundColor3 = state and Theme.Accent or Theme.Stroke,
-        Parent = holder,
-    })
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(1, 0)
-    sc.Parent = switch
-
-    local knob = create("Frame", {
-        Size = UDim2.new(0, 18, 0, 18),
-        Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
-        BackgroundColor3 = Color3.new(1, 1, 1),
-        Parent = switch,
-    })
-    local kc = Instance.new("UICorner")
-    kc.CornerRadius = UDim.new(1, 0)
-    kc.Parent = knob
-
-    switch.MouseButton1Click:Connect(function()
-        state = not state
-        local goalCol = state and Theme.Accent or Theme.Stroke
-        local goalPos = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
-        TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = goalCol}):Play()
-        TweenService:Create(knob, TweenInfo.new(0.2), {Position = goalPos}):Play()
-        callback(state)
+local function toggle(page,txt,def,cb)
+    local state=def
+    local h=create("Frame",{Size=UDim2.new(1,-6,0,BTN_H),BackgroundColor3=Color3.fromRGB(24,24,30),LayoutOrder=#page:GetChildren(),Parent=page})
+    Instance.new("UICorner",h).CornerRadius=UDim.new(0,6)
+    create("TextLabel",{Text=txt,Font=FONT_BODY,TextSize=FONT_SZ,TextColor3=Theme.Text,BackgroundTransparency=1,Position=UDim2.new(0,8,0,0),Size=UDim2.new(1,-60,1,0),TextXAlignment=Enum.TextXAlignment.Left,Parent=h})
+    local sw=create("TextButton",{Text="",Size=UDim2.new(0,40,0,20),Position=UDim2.new(1,-48,0.5,-10),BackgroundColor3=state and Theme.Accent or Theme.Stroke,Parent=h})
+    Instance.new("UICorner",sw).CornerRadius=UDim.new(1,0)
+    local kn=create("Frame",{Size=UDim2.new(0,16,0,16),Position=state and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8),BackgroundColor3=Color3.new(1,1,1),Parent=sw})
+    Instance.new("UICorner",kn).CornerRadius=UDim.new(1,0)
+    sw.MouseButton1Click:Connect(function()
+        state=not state
+        TweenService:Create(sw,TweenInfo.new(0.2),{BackgroundColor3=state and Theme.Accent or Theme.Stroke}):Play()
+        TweenService:Create(kn,TweenInfo.new(0.2),{Position=state and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)}):Play()
+        cb(state)
     end)
 end
-
-local function addSlider(page, text, min, max, default, callback)
-    local holder = create("Frame", {
-        Size = UDim2.new(1, -8, 0, BTN_HEIGHT + 6),
-        BackgroundColor3 = Color3.fromRGB(28, 28, 34),
-        LayoutOrder = #page:GetChildren(),
-        Parent = page,
-    })
-    local hc = Instance.new("UICorner")
-    hc.CornerRadius = UDim.new(0, 8)
-    hc.Parent = holder
-
-    local label = create("TextLabel", {
-        Text = text .. ": " .. tostring(default),
-        Font = FONT_BODY,
-        TextSize = FONT_SIZE - 1,
-        TextColor3 = Theme.Text,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 10, 0, 2),
-        Size = UDim2.new(1, -16, 0, 14),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = holder,
-    })
-
-    local bar = create("Frame", {
-        Size = UDim2.new(1, -16, 0, 6),
-        Position = UDim2.new(0, 8, 1, -14),
-        BackgroundColor3 = Color3.fromRGB(50, 50, 55),
-        Parent = holder,
-    })
-    local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(1, 0)
-    bc.Parent = bar
-
-    local fill = create("Frame", {
-        Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
-        BackgroundColor3 = Theme.Accent,
-        Parent = bar,
-    })
-    local fc = Instance.new("UICorner")
-    fc.CornerRadius = UDim.new(1, 0)
-    fc.Parent = fill
-
-    local draggingSlider = false
-    local function updateFromX(x)
-        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-        local val = math.floor(min + (max - min) * rel)
-        fill.Size = UDim2.new(rel, 0, 1, 0)
-        label.Text = text .. ": " .. tostring(val)
-        callback(val)
+local function slider(page,txt,min,max,def,cb)
+    local h=create("Frame",{Size=UDim2.new(1,-6,0,BTN_H+4),BackgroundColor3=Color3.fromRGB(24,24,30),LayoutOrder=#page:GetChildren(),Parent=page})
+    Instance.new("UICorner",h).CornerRadius=UDim.new(0,6)
+    local lbl=create("TextLabel",{Text=txt..": "..def,Font=FONT_BODY,TextSize=FONT_SZ-1,TextColor3=Theme.Text,BackgroundTransparency=1,Position=UDim2.new(0,8,0,2),Size=UDim2.new(1,-16,0,12),TextXAlignment=Enum.TextXAlignment.Left,Parent=h})
+    local bar=create("Frame",{Size=UDim2.new(1,-16,0,5),Position=UDim2.new(0,8,1,-12),BackgroundColor3=Color3.fromRGB(45,45,50),Parent=h})
+    Instance.new("UICorner",bar).CornerRadius=UDim.new(1,0)
+    local fill=create("Frame",{Size=UDim2.new((def-min)/(max-min),0,1,0),BackgroundColor3=Theme.Accent,Parent=bar})
+    Instance.new("UICorner",fill).CornerRadius=UDim.new(1,0)
+    local drag=false
+    local function upd(x)
+        local rel=math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+        local val=math.floor(min+(max-min)*rel)
+        fill.Size=UDim2.new(rel,0,1,0)
+        lbl.Text=txt..": "..val
+        cb(val)
     end
-
-    bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = true
-            updateFromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            updateFromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = false
-        end
-    end)
+    bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true upd(i.Position.X) end end)
+    UserInputService.InputChanged:Connect(function(i) if drag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then upd(i.Position.X) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end)
+end
+local function button(page,txt,cb)
+    local b=create("TextButton",{Text=txt,Font=FONT,TextSize=FONT_SZ,TextColor3=Theme.Text,BackgroundColor3=Theme.Accent,Size=UDim2.new(1,-6,0,BTN_H),LayoutOrder=#page:GetChildren(),Parent=page})
+    Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
+    b.MouseButton1Click:Connect(errHandler(cb,txt))
 end
 
-local function addButton(page, text, callback)
-    local btn = create("TextButton", {
-        Text = text,
-        Font = FONT,
-        TextSize = FONT_SIZE,
-        TextColor3 = Theme.Text,
-        BackgroundColor3 = Theme.Accent,
-        Size = UDim2.new(1, -8, 0, BTN_HEIGHT),
-        LayoutOrder = #page:GetChildren(),
-        Parent = page,
-    })
-    local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(0, 8)
-    bc.Parent = btn
-    btn.MouseButton1Click:Connect(errHandler(callback, text))
-    return btn
-end
+-- DRAG SYSTEM: whole frame movable by touching DragBar
+local dragObj,dragStart,startPos,dragging
+DragBar.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+        dragging=true dragStart=i.Position startPos=Main.Position
+        i.Changed:Connect(function() if i.UserInputState==Enum.UserInputState.End then dragging=false end end)
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+        local delta=i.Position-dragStart
+        Main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+    end
+end)
+-- also float icon draggable
+local fDragStart,fStartPos,fDragging
+FloatIcon.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+        fDragging=true fDragStart=i.Position fStartPos=FloatIcon.Position
+        i.Changed:Connect(function() if i.UserInputState==Enum.UserInputState.End then fDragging=false end end)
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if fDragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+        local delta=i.Position-fDragStart
+        FloatIcon.Position=UDim2.new(fStartPos.X.Scale,fStartPos.X.Offset+delta.X,fStartPos.Y.Scale,fStartPos.Y.Offset+delta.Y)
+    end
+end)
 
-local function makeDraggable(handle, target)
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = target.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-end
-
-makeDraggable(TopBar, MainFrame)
-makeDraggable(MinimizedIcon, MinimizedIcon)
-
-_G.FeatureState = _G.FeatureState or {}
-_G.RoleData = _G.RoleData or {TeamName = "SURVIVORS"}
-
-local function getRole()
-    return string.upper(_G.RoleData.TeamName or "")
-end
+-- ==================== FUNCTIONS ====================
+_G.FeatureState=_G.FeatureState or {}
+_G.RoleData=_G.RoleData or {TeamName="SURVIVORS"}
+local function getRole() return string.upper(_G.RoleData.TeamName or "") end
 
 local genRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Generator"):WaitForChild("SkillCheckResultEvent")
 local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
+local actionPath = "Survivor-mob.Controls.action.check"
 
 local function getGenerators()
-    local gens = {}
-    pcall(function()
-        local map = Workspace:FindFirstChild("Map")
-        if map then
-            for _, v in pairs(map:GetDescendants()) do
-                if v.Name == "Generator" then table.insert(gens, v) end
-            end
+    local g={}
+    pcall(function() local map=Workspace:FindFirstChild("Map") if map then for _,v in pairs(map:GetDescendants()) do if v.Name=="Generator" then table.insert(g,v) end end end end)
+    return g
+end
+local function genProgress(gen)
+    local p=0
+    if gen:GetAttribute("Progress") then p=gen:GetAttribute("Progress")
+    elseif gen:GetAttribute("RepairProgress") then p=gen:GetAttribute("RepairProgress") end
+    return math.clamp(p>1 and p/100 or p,0,1)
+end
+local function isCharacterBusy(char)
+    if not char then return true end
+    local hum=char:FindFirstChildOfClass("Humanoid")
+    if not hum then return true end
+    if hum.Health<=0 or hum.Sit or hum.PlatformStand then return true end
+    if char:GetAttribute("Hooked") or char:GetAttribute("Carried") or char:GetAttribute("Tagged") then return true end
+    return false
+end
+
+-- Skillcheck auto perfect (direct remote)
+local autoSkill=false
+local skConn
+local function startAutoSkill()
+    if autoSkill then return end
+    autoSkill=true
+    log("INFO","Auto Skillcheck ON")
+    local prompt=LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui",10)
+    if not prompt then log("ERROR","SkillCheckPromptGui missing") return end
+    local check=prompt:WaitForChild("Check",10) if not check then return end
+    skConn=check:GetPropertyChangedSignal("Visible"):Connect(function()
+        if not autoSkill or not check.Visible then return end
+        local char=LocalPlayer.Character if not char then return end
+        local root=char:FindFirstChild("HumanoidRootPart") if not root then return end
+        local nearGen,genModel,genPoint
+        for _,g in pairs(getGenerators()) do for i=1,4 do local pt=g:FindFirstChild("GeneratorPoint"..i) if pt and (root.Position-pt.Position).Magnitude<10 then nearGen=true genModel=g genPoint=pt break end end if nearGen then break end end
+        if nearGen and genModel and genPoint then
+            genRemote:FireServer("success",1,genModel,genPoint)
+        else
+            healRemote:FireServer("success",1,char)
         end
     end)
-    return gens
 end
+local function stopAutoSkill() autoSkill=false if skConn then skConn:Disconnect() skConn=nil end log("INFO","Auto Skillcheck OFF") end
 
-local function getGates()
-    local gates = {}
-    pcall(function()
-        local map = Workspace:FindFirstChild("Map")
-        if map then
-            for _, v in pairs(map:GetDescendants()) do
-                if v.Name == "Gate" then table.insert(gates, v) end
-            end
-        end
-    end)
-    return gates
-end
-
-local function getGeneratorProgress(gen)
-    local progress = 0
-    if gen:GetAttribute("Progress") then
-        progress = gen:GetAttribute("Progress")
-    elseif gen:GetAttribute("RepairProgress") then
-        progress = gen:GetAttribute("RepairProgress")
-    end
-    progress = (progress > 1) and progress / 100 or progress
-    return math.clamp(progress, 0, 1)
-end
-
-local function allGensComplete()
-    for _, gen in pairs(getGenerators()) do
-        if getGeneratorProgress(gen) < 1 then return false end
-    end
-    return true
-end
-
-local function getNearestKiller()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local nearest, nearestDist = nil, math.huge
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Team and string.upper(plr.Team.Name) == "KILLER" then
-            local plrChar = plr.Character
-            if plrChar then
-                local plrRoot = plrChar:FindFirstChild("HumanoidRootPart")
-                if plrRoot then
-                    local dist = (root.Position - plrRoot.Position).Magnitude
-                    if dist < nearestDist then
-                        nearestDist = dist
-                        nearest = plrChar
-                    end
-                end
-            end
+-- Auto Generator (TP to GeneratorPoint + touch action)
+local autoGen=false
+local genConn
+local function getClosestGenWithPoints()
+    local char=LocalPlayer.Character if not char then return end
+    local root=char:FindFirstChild("HumanoidRootPart") if not root then return end
+    local bestGen,bestDist,bestPts
+    for _,g in pairs(getGenerators()) do
+        if genProgress(g)<1 then
+            local pts={} for i=1,4 do local p=g:FindFirstChild("GeneratorPoint"..i) if p then table.insert(pts,p) end end
+            if #pts>=1 then for _,p in pairs(pts) do local d=(root.Position-p.Position).Magnitude if d<bestDist then bestDist=d bestGen=g bestPts=pts end end end
         end
     end
-    return nearest, nearestDist
+    return bestGen,bestPts
 end
 
-local autoSkillcheckEnabled = false
-local autoSkillConnection = nil
-
-local function startAutoSkillcheck()
-    if autoSkillcheckEnabled then return end
-    autoSkillcheckEnabled = true
-    log("INFO", "Starting Auto Skillcheck")
-
-    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if not prompt then log("ERROR", "SkillCheckPromptGui not found") return end
-    local check = prompt:WaitForChild("Check", 10)
-    if not check then log("ERROR", "Check not found") return end
-
-    autoSkillConnection = check:GetPropertyChangedSignal("Visible"):Connect(function()
-        if not autoSkillcheckEnabled then return end
-        if check.Visible then
-            local char = LocalPlayer.Character
-            if char then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    local nearGen = false
-                    local genModel, genPoint
-                    for _, gen in pairs(getGenerators()) do
-                        for i = 1, 4 do
-                            local pt = gen:FindFirstChild("GeneratorPoint" .. i)
-                            if pt and (root.Position - pt.Position).Magnitude < 10 then
-                                nearGen = true
-                                genModel = gen
-                                genPoint = pt
-                                break
-                            end
-                        end
-                        if nearGen then break end
-                    end
-                    if nearGen and genModel and genPoint then
-                        genRemote:FireServer("success", 1, genModel, genPoint)
-                    else
-                        healRemote:FireServer("success", 1, char)
-                    end
-                end
-            end
-        end
-    end)
-    log("SUCCESS", "Auto Skillcheck enabled")
-end
-
-local function stopAutoSkillcheck()
-    autoSkillcheckEnabled = false
-    if autoSkillConnection then autoSkillConnection:Disconnect(); autoSkillConnection = nil end
-    log("INFO", "Auto Skillcheck disabled")
-end
-
-local autoGeneEnabled = false
-local autoGeneConnection = nil
-
-local function getClosestIncompleteGenerator()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-
-    local bestGen, bestDist, bestPoints = nil, math.huge, {}
-    for _, gen in pairs(getGenerators()) do
-        if getGeneratorProgress(gen) < 1 then
-            local pts = {}
-            for i = 1, 4 do
-                local pt = gen:FindFirstChild("GeneratorPoint" .. i)
-                if pt then table.insert(pts, pt) end
-            end
-            if #pts >= 1 then
-                for _, pt in pairs(pts) do
-                    local d = (root.Position - pt.Position).Magnitude
-                    if d < bestDist then
-                        bestDist = d
-                        bestGen = gen
-                        bestPoints = pts
-                    end
-                end
-            end
-        end
+local function tapAction()
+    local current=LocalPlayer:WaitForChild("PlayerGui")
+    for seg in string.gmatch(actionPath,"[^%.]+") do current=current and current:FindFirstChild(seg) end
+    if current and current:IsA("GuiObject") then
+        local pos=current.AbsolutePosition local size=current.AbsoluteSize local ins=GuiService:GetGuiInset()
+        local cx,cy=pos.X+size.X/2+ins.X,pos.Y+size.Y/2+ins.Y
+        pcall(function() VirtualInputManager:SendTouchEvent(8822,0,cx,cy) task.wait(0.02) VirtualInputManager:SendTouchEvent(8822,2,cx,cy) end)
     end
-    if bestGen then return bestGen, bestPoints end
-    return nil
 end
 
-local function startAutoGenerator()
-    if autoGeneEnabled then return end
-    autoGeneEnabled = true
-    log("INFO", "Starting Auto Generator")
-
-    autoGeneConnection = RunService.Heartbeat:Connect(function()
-        if not autoGeneEnabled then
-            if autoGeneConnection then autoGeneConnection:Disconnect() end
-            return
+local function startAutoGen()
+    if autoGen then return end
+    autoGen=true
+    log("INFO","Auto Generator ON (touch)")
+    genConn=RunService.Heartbeat:Connect(function()
+        if not autoGen then if genConn then genConn:Disconnect() end return end
+        local char=LocalPlayer.Character if not char then return end
+        if isCharacterBusy(char) then return end
+        local root=char:FindFirstChild("HumanoidRootPart") if not root then return end
+        local gen,pts=getClosestGenWithPoints() if not gen then return end
+        for _,pt in pairs(pts) do
+            if not autoGen or genProgress(gen)>=1 then break end
+            root.CFrame=CFrame.new(pt.Position+Vector3.new(1.5,0,0))
+            task.wait(0.15)
+            tapAction()
+            task.wait(0.5)
         end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        local gen, points = getClosestIncompleteGenerator()
-        if not gen then return end
-        for _, point in pairs(points) do
-            if not autoGeneEnabled then break end
-            if getGeneratorProgress(gen) >= 1 then break end
-            root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
+        if genProgress(gen)<1 and pts[1] then
+            root.CFrame=CFrame.new(pts[1].Position+Vector3.new(1.5,0,0))
             task.wait(0.1)
-            genRemote:FireServer("success", 1, gen, point)
-            task.wait(0.6)
-        end
-        if getGeneratorProgress(gen) < 1 and points[1] then
-            root.CFrame = CFrame.new(points[1].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.1)
-            genRemote:FireServer("success", 1, gen, points[1])
+            tapAction()
         end
     end)
 end
+local function stopAutoGen() autoGen=false if genConn then genConn:Disconnect() genConn=nil end log("INFO","Auto Generator OFF") end
 
-local function stopAutoGenerator()
-    autoGeneEnabled = false
-    if autoGeneConnection then autoGeneConnection:Disconnect(); autoGeneConnection = nil end
-    log("INFO", "Auto Generator disabled")
-end
+-- other features (simplified)
+local god=false
+local function godLoop() while god do local c=LocalPlayer.Character if c then local h=c:FindFirstChildOfClass("Humanoid") if h then h.MaxHealth=1e9 h.Health=1e9 end end task.wait(0.1) end end
+local function startGod() god=true task.spawn(godLoop) end
+local function stopGod() god=false local c=LocalPlayer.Character if c then local h=c:FindFirstChildOfClass("Humanoid") if h then h.MaxHealth=100 h.Health=100 end end end
 
-local instantWiggleEnabled = false
-local wiggleConnection = nil
+local selfHeal=false
+local function selfHealLoop() while selfHeal do local c=LocalPlayer.Character if c then local h=c:FindFirstChildOfClass("Humanoid") if h and h.Health<90 then healRemote:FireServer("success",1,c) end end task.wait(0.5) end end
+local function startSelfHeal() selfHeal=true task.spawn(selfHealLoop) end
+local function stopSelfHeal() selfHeal=false end
 
-local function startInstantWiggle()
-    if instantWiggleEnabled then return end
-    instantWiggleEnabled = true
-    log("INFO", "Instant Wiggle Free enabled")
-    wiggleConnection = RunService.Heartbeat:Connect(function()
-        if not instantWiggleEnabled then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum and (hum.Sit or hum.PlatformStand) then
-            healRemote:FireServer("success", 1, char)
-        end
-    end)
-end
-
-local function stopInstantWiggle()
-    instantWiggleEnabled = false
-    if wiggleConnection then wiggleConnection:Disconnect(); wiggleConnection = nil end
-    log("INFO", "Instant Wiggle Free disabled")
-end
-
-local autoExitGatesEnabled = false
-local exitGateConnection = nil
-
-local function startAutoExitGates()
-    if autoExitGatesEnabled then return end
-    autoExitGatesEnabled = true
-    log("INFO", "Auto Exit Gates enabled")
-    exitGateConnection = RunService.Heartbeat:Connect(function()
-        if not autoExitGatesEnabled then return end
-        if not allGensComplete() then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        for _, gate in pairs(getGates()) do
-            local gateSwitch = gate:FindFirstChild("Switch") or gate:FindFirstChild("Lever")
-            if gateSwitch then
-                root.CFrame = CFrame.new(gateSwitch.Position + Vector3.new(0, 2, 0))
-                task.wait(0.2)
-            end
-        end
-        autoExitGatesEnabled = false
-        log("SUCCESS", "Teleported to exit gates")
-    end)
-end
-
-local function stopAutoExitGates()
-    autoExitGatesEnabled = false
-    if exitGateConnection then exitGateConnection:Disconnect(); exitGateConnection = nil end
-    log("INFO", "Auto Exit Gates disabled")
-end
-
-local killerJukeEnabled = false
-local jukeConnection = nil
-
-local function startKillerJuke()
-    if killerJukeEnabled then return end
-    killerJukeEnabled = true
-    log("INFO", "Killer Juke enabled")
-    jukeConnection = RunService.Heartbeat:Connect(function()
-        if not killerJukeEnabled then return end
-        local nearestKiller, dist = getNearestKiller()
-        if not nearestKiller or dist > 15 then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        local killerRoot = nearestKiller:FindFirstChild("HumanoidRootPart")
-        if not killerRoot then return end
-        local rightVector = Camera.CFrame.RightVector
-        local jukeDirection = math.random(0,1) == 0 and rightVector or -rightVector
-        local jukePosition = root.Position + jukeDirection * 10
-        root.CFrame = CFrame.new(jukePosition)
-        task.wait(0.5)
-    end)
-end
-
-local function stopKillerJuke()
-    killerJukeEnabled = false
-    if jukeConnection then jukeConnection:Disconnect(); jukeConnection = nil end
-    log("INFO", "Killer Juke disabled")
-end
-
-local godModeEnabled = false
-
-local function godModeLoop()
-    while godModeEnabled do
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.MaxHealth = 1e9
-                hum.Health = 1e9
-            end
-        end
-        task.wait(0.1)
-    end
-end
-
-local function startGodMode()
-    godModeEnabled = true
-    log("INFO", "God Mode enabled")
-    task.spawn(godModeLoop)
-end
-
-local function stopGodMode()
-    godModeEnabled = false
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.MaxHealth = 100
-            hum.Health = 100
-        end
-    end
-    log("INFO", "God Mode disabled")
-end
-
-local selfHealEnabled = false
-
-local function selfHealLoop()
-    while selfHealEnabled do
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health < 90 then
-                healRemote:FireServer("success", 1, char)
-            end
-        end
-        task.wait(0.5)
-    end
-end
-
-local function startSelfHeal()
-    selfHealEnabled = true
-    log("INFO", "Self Heal enabled")
-    task.spawn(selfHealLoop)
-end
-
-local function stopSelfHeal()
-    selfHealEnabled = false
-    log("INFO", "Self Heal disabled")
-end
-
-local autoHealEnabled = false
-
-local function autoHealLoop()
-    while autoHealEnabled do
-        local char = LocalPlayer.Character
-        if not char then task.wait(0.5) continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then task.wait(0.5) continue end
-        for _, plr in pairs(Players:GetPlayers()) do
-            if not autoHealEnabled then break end
-            if plr ~= LocalPlayer and plr.Team == LocalPlayer.Team and plr.Character then
-                local targetHum = plr.Character:FindFirstChild("Humanoid")
-                if targetHum and targetHum.Health <= 50 then
-                    local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart")
-                    if targetRoot then
-                        root.CFrame = CFrame.new(targetRoot.Position + Vector3.new(2, 0, 0))
-                        task.wait(0.3)
-                        healRemote:FireServer("success", 1, plr.Character)
-                        task.wait(0.5)
+local teamHeal=false
+local function teamHealLoop()
+    while teamHeal do
+        local c=LocalPlayer.Character if not c then task.wait(0.5) continue end
+        local root=c:FindFirstChild("HumanoidRootPart") if not root then task.wait(0.5) continue end
+        for _,p in pairs(Players:GetPlayers()) do
+            if not teamHeal then break end
+            if p~=LocalPlayer and p.Team==LocalPlayer.Team and p.Character then
+                local hum=p.Character:FindFirstChild("Humanoid") if hum and hum.Health<=50 then
+                    local tr=p.Character:FindFirstChild("HumanoidRootPart") if tr then
+                        root.CFrame=CFrame.new(tr.Position+Vector3.new(2,0,0)) task.wait(0.3)
+                        healRemote:FireServer("success",1,p.Character) task.wait(0.5)
                     end
                 end
             end
@@ -817,391 +328,132 @@ local function autoHealLoop()
         task.wait(1)
     end
 end
+local function startTeamHeal() if teamHeal then return end teamHeal=true task.spawn(teamHealLoop) end
+local function stopTeamHeal() teamHeal=false end
 
-local function startAutoHeal()
-    if autoHealEnabled then return end
-    autoHealEnabled = true
-    log("INFO", "Team Heal enabled")
-    task.spawn(autoHealLoop)
-end
-
-local function stopAutoHeal()
-    autoHealEnabled = false
-    log("INFO", "Team Heal disabled")
-end
-
-local espPlayers = {}
-local espGenerators = {}
-
-local function createPlayerESP(plr)
-    if plr == LocalPlayer then return end
-    if espPlayers[plr] then return end
-    local char = plr.Character
-    if not char then return end
-
-    local highlight = Instance.new("Highlight")
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Adornee = char
-    highlight.Parent = CoreGui
-
-    local head = char:FindFirstChild("Head")
+local espP={}
+local espG={}
+local function playerESP(plr)
+    if plr==LocalPlayer or espP[plr] then return end
+    local c=plr.Character if not c then return end
+    local hl=Instance.new("Highlight") hl.FillTransparency=0.5 hl.OutlineTransparency=0 hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop hl.Adornee=c hl.Parent=CoreGui
+    local head=c:FindFirstChild("Head")
     if head then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Size = UDim2.new(0, 100, 0, 30)
-        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Parent = head
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = plr.Name
-        label.Font = Enum.Font.SourceSansBold
-        label.TextSize = 13
-        label.TextStrokeTransparency = 0
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.Parent = billboard
-
-        espPlayers[plr] = {highlight = highlight, billboard = billboard}
-    else
-        espPlayers[plr] = {highlight = highlight}
-    end
+        local bill=Instance.new("BillboardGui") bill.Size=UDim2.new(0,100,0,30) bill.StudsOffset=Vector3.new(0,2.5,0) bill.AlwaysOnTop=true bill.Parent=head
+        local lb=Instance.new("TextLabel") lb.Size=UDim2.new(1,0,1,0) lb.BackgroundTransparency=1 lb.Text=plr.Name lb.Font=Enum.Font.SourceSansBold lb.TextSize=13 lb.TextStrokeTransparency=0 lb.TextColor3=Color3.new(1,1,1) lb.Parent=bill
+        espP[plr]={hl=hl,bill=bill}
+    else espP[plr]={hl=hl} end
 end
-
-local function removePlayerESP(plr)
-    local data = espPlayers[plr]
-    if data then
-        if data.highlight then data.highlight:Destroy() end
-        if data.billboard then data.billboard:Destroy() end
-        espPlayers[plr] = nil
-    end
-end
-
-local function updatePlayerESPColors()
+local function remPlayerESP(plr) local d=espP[plr] if d then if d.hl then d.hl:Destroy() end if d.bill then d.bill:Destroy() end espP[plr]=nil end end
+local function updatePlayerColors()
     if not _G.FeatureState.espPlayer then return end
-    for plr, data in pairs(espPlayers) do
-        if data.highlight and data.highlight.Parent then
-            local role = plr.Team and string.upper(plr.Team.Name or "") or ""
-            local color = role == "KILLER" and Color3.fromRGB(255, 0, 0) or
-                         role == "SURVIVORS" and Color3.fromRGB(0, 170, 255) or
-                         Color3.fromRGB(255, 255, 255)
-            data.highlight.FillColor = color
-            data.highlight.OutlineColor = color
-            if data.billboard then
-                local label = data.billboard:FindFirstChildOfClass("TextLabel")
-                if label then label.TextColor3 = color end
-            end
-        else
-            removePlayerESP(plr)
-        end
+    for plr,d in pairs(espP) do
+        if d.hl and d.hl.Parent then
+            local role=plr.Team and string.upper(plr.Team.Name) or ""
+            local col=role=="KILLER" and Color3.fromRGB(255,0,0) or role=="SURVIVORS" and Color3.fromRGB(0,170,255) or Color3.fromRGB(255,255,255)
+            d.hl.FillColor=col d.hl.OutlineColor=col
+            if d.bill then local l=d.bill:FindFirstChildOfClass("TextLabel") if l then l.TextColor3=col end end
+        else remPlayerESP(plr) end
     end
 end
+local function startPlayerESP() _G.FeatureState.espPlayer=true for _,p in pairs(Players:GetPlayers()) do if p~=LocalPlayer and p.Character then playerESP(p) end end updatePlayerColors() end
+local function stopPlayerESP() _G.FeatureState.espPlayer=false for p in pairs(espP) do remPlayerESP(p) end end
 
-local function startPlayerESP()
-    _G.FeatureState.espPlayer = true
-    log("INFO", "Player ESP enabled")
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            createPlayerESP(plr)
-        end
-    end
-    updatePlayerESPColors()
+local function genESP(g)
+    if espG[g] then return end
+    local hl=Instance.new("Highlight") hl.FillColor=Color3.fromRGB(150,0,200) hl.FillTransparency=0.5 hl.OutlineTransparency=0 hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop hl.Adornee=g hl.Parent=CoreGui
+    local bill=Instance.new("BillboardGui") bill.Size=UDim2.new(0,100,0,40) bill.AlwaysOnTop=true bill.StudsOffset=Vector3.new(0,2,0) bill.Parent=g
+    local lb=Instance.new("TextLabel") lb.Size=UDim2.new(1,0,1,0) lb.BackgroundTransparency=1 lb.TextSize=14 lb.Font=Enum.Font.SourceSansBold lb.TextStrokeTransparency=0 lb.Text="" lb.TextColor3=Color3.fromRGB(255,255,255) lb.Parent=bill
+    espG[g]={hl=hl,bill=bill,lb=lb}
 end
-
-local function stopPlayerESP()
-    _G.FeatureState.espPlayer = false
-    log("INFO", "Player ESP disabled")
-    for plr in pairs(espPlayers) do
-        removePlayerESP(plr)
-    end
-end
-
-local function createGeneratorESP(gen)
-    if espGenerators[gen] then return end
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = Color3.fromRGB(150, 0, 200)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Adornee = gen
-    highlight.Parent = CoreGui
-
-    local billboard = Instance.new("BillboardGui")
-    billboard.Size = UDim2.new(0, 100, 0, 40)
-    billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0, 2, 0)
-    billboard.Parent = gen
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.TextSize = 14
-    label.Font = Enum.Font.SourceSansBold
-    label.TextStrokeTransparency = 0
-    label.Text = ""
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Parent = billboard
-
-    espGenerators[gen] = {highlight = highlight, billboard = billboard, label = label}
-end
-
-local function removeGeneratorESP(gen)
-    local data = espGenerators[gen]
-    if data then
-        if data.highlight then data.highlight:Destroy() end
-        if data.billboard then data.billboard:Destroy() end
-        espGenerators[gen] = nil
-    end
-end
-
-local function updateGeneratorESP()
+local function remGenESP(g) local d=espG[g] if d then if d.hl then d.hl:Destroy() end if d.bill then d.bill:Destroy() end espG[g]=nil end end
+local function updateGenESP()
     if not _G.FeatureState.espGenerator then return end
-    for _, gen in pairs(getGenerators()) do
-        local progress = getGeneratorProgress(gen)
-        local percent = math.floor(progress * 100)
-        local color = Color3.fromRGB(150, 0, 200):Lerp(Color3.fromRGB(0, 255, 0), progress)
-        createGeneratorESP(gen)
-        local data = espGenerators[gen]
-        if data then
-            data.highlight.FillColor = color
-            data.highlight.OutlineColor = color
-            data.label.Text = _G.FeatureState.generatorProgress and (percent .. "%") or ""
-            data.label.TextColor3 = color
-        end
+    for _,g in pairs(getGenerators()) do
+        local prog=genProgress(g) local pct=math.floor(prog*100)
+        local col=Color3.fromRGB(150,0,200):Lerp(Color3.fromRGB(0,255,0),prog)
+        genESP(g) local d=espG[g] if d then d.hl.FillColor=col d.hl.OutlineColor=col d.lb.Text=_G.FeatureState.generatorProgress and (pct.."%") or "" d.lb.TextColor3=col end
     end
 end
+local function startGenESP() _G.FeatureState.espGenerator=true updateGenESP() end
+local function stopGenESP() _G.FeatureState.espGenerator=false for g in pairs(espG) do remGenESP(g) end end
 
-local function startGeneratorESP()
-    _G.FeatureState.espGenerator = true
-    log("INFO", "Generator ESP enabled")
-    updateGeneratorESP()
-end
-
-local function stopGeneratorESP()
-    _G.FeatureState.espGenerator = false
-    log("INFO", "Generator ESP disabled")
-    for gen in pairs(espGenerators) do
-        removeGeneratorESP(gen)
-    end
-end
-
-local aimbotEnabled = false
-
-local function isValidAimTarget(plr)
-    local role = getRole()
-    if role == "SPECTATOR" then return false end
-    local targetRole = plr.Team and string.upper(plr.Team.Name or "") or ""
-    if role == "SURVIVORS" then
-        return targetRole == "KILLER"
-    elseif role == "KILLER" then
-        if targetRole ~= "SURVIVORS" then return false end
-        local char = plr.Character
-        if not char then return false end
-        local hum = char:FindFirstChild("Humanoid")
-        if hum and (hum.Health <= 0 or hum.PlatformStand) then return false end
+local aim=false
+local function isValidAim(plr)
+    local role=getRole() if role=="SPECTATOR" then return false end
+    local tr=plr.Team and string.upper(plr.Team.Name) or ""
+    if role=="SURVIVORS" then return tr=="KILLER"
+    elseif role=="KILLER" then
+        if tr~="SURVIVORS" then return false end
+        local c=plr.Character if not c then return false end
+        local h=c:FindFirstChild("Humanoid") if h and (h.Health<=0 or h.PlatformStand) then return false end
         return true
     end
     return false
 end
-
-local function findAimTarget()
-    local closest = nil
-    local closestDist = 200
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and isValidAimTarget(plr) and plr.Character then
-            local targetPart = plr.Character:FindFirstChild("UpperTorso") or
-                              plr.Character:FindFirstChild("Torso") or
-                              plr.Character:FindFirstChild("HumanoidRootPart")
-            if targetPart then
-                local dist = (Camera.CFrame.Position - targetPart.Position).Magnitude
-                if dist < closestDist then
-                    closestDist = dist
-                    closest = targetPart
-                end
-            end
+local function findAim()
+    local best,bestD
+    for _,p in pairs(Players:GetPlayers()) do
+        if p~=LocalPlayer and isValidAim(p) and p.Character then
+            local part=p.Character:FindFirstChild("UpperTorso") or p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("HumanoidRootPart")
+            if part then local d=(Camera.CFrame.Position-part.Position).Magnitude if d<200 and (not best or d<bestD) then best=part bestD=d end end
         end
     end
-    return closest
+    return best
 end
+RunService.RenderStepped:Connect(function() if not aim then return end local t=findAim() if t then Camera.CFrame=Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position,t.Position),0.15) end end)
+local function startAim() aim=true end
+local function stopAim() aim=false end
 
-RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled then return end
-    local target = findAimTarget()
-    if target then
-        local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, target.Position)
-        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.15)
-    end
-end)
-
-local function startAimbot()
-    aimbotEnabled = true
-    log("INFO", "Aimbot enabled")
-end
-
-local function stopAimbot()
-    aimbotEnabled = false
-    log("INFO", "Aimbot disabled")
-end
-
-local flyEnabled = false
-local flySpeed = 50
-local flyConnection = nil
-local bodyVelocity = nil
-local bodyGyro = nil
-
+local fly=false flySpd=50 flyConn,bv,bg
 local function startFly()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChild("Humanoid")
-    if not hrp or not hum then return end
-
-    bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(40000, 40000, 40000)
-    bodyVelocity.Parent = hrp
-
-    bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(40000, 40000, 40000)
-    bodyGyro.P = 1000
-    bodyGyro.Parent = hrp
-
-    flyConnection = RunService.Heartbeat:Connect(function()
-        if not flyEnabled then return end
-        bodyGyro.CFrame = Camera.CFrame
-        local vel = Vector3.new(0, 0, 0)
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then vel += Camera.CFrame.LookVector * flySpeed end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then vel += Camera.CFrame.LookVector * -flySpeed end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then vel += Camera.CFrame.RightVector * -flySpeed end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then vel += Camera.CFrame.RightVector * flySpeed end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then vel += Vector3.new(0, flySpeed, 0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then vel += Vector3.new(0, -flySpeed, 0) end
-        bodyVelocity.Velocity = vel
-        hum.PlatformStand = true
+    local c=LocalPlayer.Character if not c then return end local hrp=c:FindFirstChild("HumanoidRootPart") local hum=c:FindFirstChild("Humanoid") if not hrp or not hum then return end
+    bv=Instance.new("BodyVelocity") bv.MaxForce=Vector3.new(40000,40000,40000) bv.Parent=hrp
+    bg=Instance.new("BodyGyro") bg.MaxTorque=Vector3.new(40000,40000,40000) bg.P=1000 bg.Parent=hrp
+    flyConn=RunService.Heartbeat:Connect(function() if not fly then return end bg.CFrame=Camera.CFrame local vel=Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then vel+=Camera.CFrame.LookVector*flySpd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then vel+=Camera.CFrame.LookVector*-flySpd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then vel+=Camera.CFrame.RightVector*-flySpd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then vel+=Camera.CFrame.RightVector*flySpd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then vel+=Vector3.new(0,flySpd,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then vel+=Vector3.new(0,-flySpd,0) end
+        bv.Velocity=vel hum.PlatformStand=true
     end)
-    log("INFO", "Fly enabled")
 end
+local function stopFly() if flyConn then flyConn:Disconnect() end if bv then bv:Destroy() end if bg then bg:Destroy() end local c=LocalPlayer.Character if c then local h=c:FindFirstChild("Humanoid") if h then h.PlatformStand=false end end end
 
-local function stopFly()
-    if flyConnection then flyConnection:Disconnect() end
-    if bodyVelocity then bodyVelocity:Destroy() end
-    if bodyGyro then bodyGyro:Destroy() end
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChild("Humanoid")
-        if hum then hum.PlatformStand = false end
-    end
-    log("INFO", "Fly disabled")
-end
+local noclip=false ncConn
+local function startNoclip() ncConn=RunService.Stepped:Connect(function() if not noclip then return end local c=LocalPlayer.Character if c then for _,p in pairs(c:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end end) end
+local function stopNoclip() if ncConn then ncConn:Disconnect() end local c=LocalPlayer.Character if c then for _,p in pairs(c:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=true end end end end
 
-local noclipEnabled = false
-local noclipConnection = nil
+Lighting.Ambient=Color3.new(1,1,1) Lighting.OutdoorAmbient=Color3.new(1,1,1) Lighting.Brightness=2 Lighting.ClockTime=14 Lighting.FogEnd=9e9 Lighting.GlobalShadows=false
+RunService.Heartbeat:Connect(function() Lighting.Ambient=Color3.new(1,1,1) Lighting.OutdoorAmbient=Color3.new(1,1,1) Lighting.Brightness=2 end)
 
-local function startNoclip()
-    noclipConnection = RunService.Stepped:Connect(function()
-        if not noclipEnabled then return end
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
-        end
-    end)
-    log("INFO", "Noclip enabled")
-end
+-- UI construction
+sec(Survivor,"GENERATOR")
+toggle(Survivor,"Auto Generator",false,function(v) if v then startAutoGen() else stopAutoGen() end end)
+toggle(Survivor,"Auto Skillcheck",false,function(v) if v then startAutoSkill() else stopAutoSkill() end end)
+sec(Survivor,"HEALING")
+toggle(Survivor,"Self Heal",false,function(v) if v then startSelfHeal() else stopSelfHeal() end end)
+toggle(Survivor,"Team Heal",false,function(v) if v then startTeamHeal() else stopTeamHeal() end end)
+sec(Killer,"AIMBOT")
+toggle(Killer,"Aimbot",false,function(v) if v then startAim() else stopAim() end end)
+sec(Esp,"ESP")
+toggle(Esp,"Players",false,function(v) if v then startPlayerESP() else stopPlayerESP() end end)
+toggle(Esp,"Generators",false,function(v) if v then startGenESP() else stopGenESP() end end)
+toggle(Esp,"Progress %",false,function(v) _G.FeatureState.generatorProgress=v updateGenESP() end)
+sec(Move,"MOVEMENT")
+toggle(Move,"Fly (WASD)",false,function(v) fly=v if v then startFly() else stopFly() end end)
+slider(Move,"Speed",10,200,50,function(v) flySpd=v end)
+toggle(Move,"Noclip",false,function(v) noclip=v if v then startNoclip() else stopNoclip() end end)
+toggle(Move,"Speed Boost",false,function(v) local c=LocalPlayer.Character if c then local h=c:FindFirstChild("Humanoid") if h then h.WalkSpeed=v and 30 or 16 end end end)
+toggle(Move,"Inf Jump",false,function(v) if v then UserInputService.JumpRequest:Connect(function() local c=LocalPlayer.Character if c and c:FindFirstChild("Humanoid") then c.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end end) end end)
+sec(Misc,"GOD")
+toggle(Misc,"God Mode",false,function(v) if v then startGod() else stopGod() end end)
 
-local function stopNoclip()
-    if noclipConnection then noclipConnection:Disconnect() end
-    local char = LocalPlayer.Character
-    if char then
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = true end
-        end
-    end
-    log("INFO", "Noclip disabled")
-end
+Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() task.wait(1) if _G.FeatureState.espPlayer then playerESP(p) end end) end)
+Players.PlayerRemoving:Connect(function(p) remPlayerESP(p) end)
+for _,p in pairs(Players:GetPlayers()) do if p~=LocalPlayer and p.Character then playerESP(p) end end
+RunService.RenderStepped:Connect(function() if _G.FeatureState.espPlayer then updatePlayerColors() end if _G.FeatureState.espGenerator then updateGenESP() end end)
 
-local function fullbrightUpdate()
-    Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-    Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-    Lighting.Brightness = 2
-    Lighting.ClockTime = 14
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 9e9
-end
-fullbrightUpdate()
-RunService.Heartbeat:Connect(fullbrightUpdate)
-
-addSection(SurvivorPage, "GENERATOR")
-addToggle(SurvivorPage, "Auto Generator", false, function(v) if v then startAutoGenerator() else stopAutoGenerator() end end)
-addToggle(SurvivorPage, "Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
-
-addSection(SurvivorPage, "HEALING")
-addToggle(SurvivorPage, "Auto Heal Team", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
-addToggle(SurvivorPage, "Auto Heal Self", false, function(v) if v then startSelfHeal() else stopSelfHeal() end end)
-
-addSection(SurvivorPage, "UTILITY")
-addToggle(SurvivorPage, "Instant Wiggle Free", false, function(v) if v then startInstantWiggle() else stopInstantWiggle() end end)
-addToggle(SurvivorPage, "Auto Exit Gates", false, function(v) if v then startAutoExitGates() else stopAutoExitGates() end end)
-addToggle(SurvivorPage, "Killer Juke", false, function(v) if v then startKillerJuke() else stopKillerJuke() end end)
-
-addSection(KillerPage, "COMBAT")
-addToggle(KillerPage, "Aimbot", false, function(v) if v then startAimbot() else stopAimbot() end end)
-
-addSection(ESPPage, "VISUALS")
-addToggle(ESPPage, "ESP Players", false, function(v) if v then startPlayerESP() else stopPlayerESP() end end)
-addToggle(ESPPage, "ESP Generators", false, function(v) if v then startGeneratorESP() else stopGeneratorESP() end end)
-addToggle(ESPPage, "Show Progress", false, function(v) _G.FeatureState.generatorProgress = v; updateGeneratorESP() end)
-
-addSection(MovePage, "MOVEMENT")
-addToggle(MovePage, "Fly (WASD)", false, function(v) flyEnabled = v; if v then startFly() else stopFly() end end)
-addSlider(MovePage, "Fly Speed", 10, 200, 50, function(v) flySpeed = v end)
-addToggle(MovePage, "Noclip", false, function(v) noclipEnabled = v; if v then startNoclip() else stopNoclip() end end)
-addToggle(MovePage, "Speed Boost", false, function(v)
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChild("Humanoid")
-        if hum then hum.WalkSpeed = v and 30 or 16 end
-    end
-end)
-addToggle(MovePage, "Infinite Jump", false, function(v)
-    if v then
-        UserInputService.JumpRequest:Connect(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end)
-    end
-end)
-
-addSection(MiscPage, "GOD MODE")
-addToggle(MiscPage, "God Mode (No Death)", false, function(v) if v then startGodMode() else stopGodMode() end end)
-
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        if _G.FeatureState.espPlayer then createPlayerESP(plr) end
-    end)
-end)
-
-Players.PlayerRemoving:Connect(function(plr)
-    removePlayerESP(plr)
-end)
-
-for _, plr in pairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer and plr.Character then
-        plr.CharacterAdded:Connect(function(char)
-            task.wait(1)
-            if _G.FeatureState.espPlayer then createPlayerESP(plr) end
-        end)
-    end
-end
-
-RunService.RenderStepped:Connect(function()
-    if _G.FeatureState.espPlayer then updatePlayerESPColors() end
-    if _G.FeatureState.espGenerator then updateGeneratorESP() end
-end)
-
-log("SUCCESS", "Violence District script fully loaded")
+log("SUCCESS","VD Mini loaded – drag top bar to move")
