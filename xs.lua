@@ -430,13 +430,25 @@ local function genProgress(gen)
     return math.clamp(p > 1 and p / 100 or p, 0, 1)
 end
 
--- Check for hooked, tagged, carried, knocked, etc.
+-- Improved busy check to avoid "emote wheel disabled" error
 local function isCharacterBusy(char)
     if not char then return true end
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return true end
-    if hum.Health <= 0 or hum.Sit or hum.PlatformStand then return true end
-    if char:GetAttribute("Hooked") or char:GetAttribute("Carried") or char:GetAttribute("Tagged") or char:GetAttribute("Knocked") or char:GetAttribute("Grabbed") then return true end
+    if hum.Health <= 0 then return true end
+    if hum.Sit or hum.PlatformStand then return true end
+    -- Check for common CC states
+    if char:GetAttribute("Hooked") then return true end
+    if char:GetAttribute("Tagged") then return true end
+    if char:GetAttribute("Knocked") then return true end
+    if char:GetAttribute("Grabbed") then return true end
+    if char:GetAttribute("Carried") then return true end
+    if char:GetAttribute("Downed") then return true end
+    if char:GetAttribute("IsHooked") then return true end
+    if char:GetAttribute("PerformingAction") then return true end
+    if char:GetAttribute("Action") then return true end
+    -- Also check if the humanoid is in a ragdoll state
+    if hum:GetState() == Enum.HumanoidStateType.FallingDown or hum:GetState() == Enum.HumanoidStateType.Ragdoll then return true end
     return false
 end
 
@@ -507,7 +519,7 @@ local function stopAutoSkill()
     log("INFO", "Auto Skillcheck OFF")
 end
 
--- Auto Generator: side-to-side perfect using remote
+-- Auto Generator: side-to-side perfect using remote, respects busy state
 local autoGen = false
 local genConn
 
@@ -542,6 +554,8 @@ end
 
 local function fireGenRemote(gen, point)
     if not genRemote then return false end
+    local char = LocalPlayer.Character
+    if isCharacterBusy(char) then return false end
     local ok, err = pcall(function()
         genRemote:FireServer("success", 1, gen, point)
     end)
@@ -561,8 +575,7 @@ local function startAutoGen()
         end
         
         local char = LocalPlayer.Character
-        if not char then return end
-        if isCharacterBusy(char) then return end
+        if not char or isCharacterBusy(char) then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
         
@@ -571,6 +584,7 @@ local function startAutoGen()
         
         -- If only one point, just spam it
         if #pts == 1 then
+            if isCharacterBusy(char) then return end
             root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
             task.wait(0.15)
             fireGenRemote(gen, pts[1])
@@ -578,18 +592,21 @@ local function startAutoGen()
         end
         
         -- Side-to-side: point1 -> point2 -> (point3 if exists) -> point1
+        if isCharacterBusy(char) then return end
         root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
         task.wait(0.1)
         fireGenRemote(gen, pts[1])
         task.wait(0.7)
         
         if not autoGen or genProgress(gen) >= 1 then return end
+        if isCharacterBusy(char) then return end
         root.CFrame = CFrame.new(pts[2].Position + Vector3.new(1.5, 0, 0))
         task.wait(0.1)
         fireGenRemote(gen, pts[2])
         task.wait(0.7)
         
         if #pts >= 3 and autoGen and genProgress(gen) < 1 then
+            if isCharacterBusy(char) then return end
             root.CFrame = CFrame.new(pts[3].Position + Vector3.new(1.5, 0, 0))
             task.wait(0.1)
             fireGenRemote(gen, pts[3])
@@ -598,9 +615,11 @@ local function startAutoGen()
         
         -- Return to point1 and stay until complete
         if autoGen and genProgress(gen) < 1 then
+            if isCharacterBusy(char) then return end
             root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
             task.wait(0.1)
             while autoGen and genProgress(gen) < 1 do
+                if isCharacterBusy(char) then break end
                 fireGenRemote(gen, pts[1])
                 task.wait(0.5)
             end
@@ -942,4 +961,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Perfect Gen Side-to-Side")
+log("SUCCESS", "VD Mini loaded – No more emote errors")
