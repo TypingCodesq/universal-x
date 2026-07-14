@@ -1,10 +1,10 @@
 --[[
-    VIOLENCE DISTRICT - UNIFIED SCRIPT v2.0
+    VIOLENCE DISTRICT - UNIFIED SCRIPT v2.1
     • Modern UI with minimize/close
     • ESP Players + Generators + Progress + Pallets
     • Aimbot (Survivor/Killer compatible)
-    • Auto Gene (Side-to-side speed glitch)
-    • Auto Heal + Drop All Pallets
+    • Auto Gene (GeneratorPoint switching speed glitch)
+    • Auto Heal + Drop All Pallets (fixed)
     • Auto Skillcheck, Fly, Noclip, Speed, Jump
     • Fullbright, Next Killer Display
 ]]
@@ -627,42 +627,53 @@ local function stopAimbot()
     aimbotEnabled = false
 end
 
--- AUTO GENERATOR WITH SIDE-TO-SIDE GLITCH
+-- AUTO GENERATOR WITH GENERATORPOINT SWITCHING
 local autoGeneEnabled = false
 local autoGeneConnection = nil
-local geneSideToggle = false
 
-local function getClosestGenerator()
+local function getClosestGeneratorWithPoints()
     local char = LocalPlayer.Character
     if not char then return nil end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
     
-    local closest = nil
-    local closestDist = math.huge
+    local bestGen = nil
+    local bestDist = math.huge
+    local bestPoints = {}
     
     for _, gen in pairs(getGenerators()) do
         local progress = getGeneratorProgress(gen)
         if progress < 1 then
+            local points = {}
             for i = 1, 4 do
-                local point = gen:FindFirstChild("GeneratorPoint" .. i)
-                if point then
-                    local dist = (root.Position - point.Position).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = {gen = gen, point = point, progress = progress}
-                    end
+                local pt = gen:FindFirstChild("GeneratorPoint" .. i)
+                if pt then table.insert(points, pt) end
+            end
+            if #points > 0 then
+                local closestDist = math.huge
+                for _, pt in pairs(points) do
+                    local d = (root.Position - pt.Position).Magnitude
+                    if d < closestDist then closestDist = d end
+                end
+                if closestDist < bestDist then
+                    bestDist = closestDist
+                    bestGen = gen
+                    bestPoints = points
                 end
             end
         end
     end
-    return closest
+    
+    if bestGen then
+        return bestGen, bestPoints
+    end
+    return nil
 end
 
 local function autoGeneLoop()
     while autoGeneEnabled do
-        local target = getClosestGenerator()
-        if not target then
+        local gen, points = getClosestGeneratorWithPoints()
+        if not gen or #points < 2 then
             task.wait(0.5)
             continue
         end
@@ -672,27 +683,26 @@ local function autoGeneLoop()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then task.wait(0.5) continue end
         
-        -- TP to generator
-        root.CFrame = CFrame.new(target.point.Position + Vector3.new(0, 3, 0))
+        -- TP to first point and start repairing
+        local pointIndex = 1
+        root.CFrame = CFrame.new(points[pointIndex].Position + Vector3.new(0, 3, 0))
         task.wait(0.3)
-        
-        -- Press E to start
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
         task.wait(0.1)
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-        task.wait(0.5)
         
-        -- Side-to-side glitch for faster repair
+        -- Switch between points rapidly
         local startTime = tick()
-        while autoGeneEnabled and tick() - startTime < 3 do
-            local currentGen = getClosestGenerator()
-            if not currentGen or currentGen.gen ~= target.gen then break end
+        while autoGeneEnabled and tick() - startTime < 5 do
+            local currentProgress = getGeneratorProgress(gen)
+            if currentProgress >= 1 then break end
             
-            geneSideToggle = not geneSideToggle
-            local offset = geneSideToggle and Vector3.new(4, 0, 0) or Vector3.new(-4, 0, 0)
-            root.CFrame = CFrame.new(target.point.Position + offset + Vector3.new(0, 3, 0))
-            task.wait(0.15)
+            pointIndex = (pointIndex % #points) + 1
+            root.CFrame = CFrame.new(points[pointIndex].Position + Vector3.new(0, 3, 0))
+            task.wait(0.15) -- Rapid but not instant TP
         end
+        
+        task.wait(0.5)
     end
 end
 
@@ -750,7 +760,24 @@ local function stopAutoHeal()
     autoHealEnabled = false
 end
 
--- DROP ALL PALLETS
+-- DROP ALL PALLETS (FIXED)
+local function getPalletPosition(pallet)
+    -- Try to get PrimaryPart of model
+    if pallet:IsA("Model") then
+        local primary = pallet.PrimaryPart
+        if primary then return primary.Position end
+        -- Fallback: find any BasePart
+        for _, child in pairs(pallet:GetChildren()) do
+            if child:IsA("BasePart") then
+                return child.Position
+            end
+        end
+    elseif pallet:IsA("BasePart") then
+        return pallet.Position
+    end
+    return nil
+end
+
 local function dropAllPallets()
     local char = LocalPlayer.Character
     if not char then return end
@@ -762,15 +789,15 @@ local function dropAllPallets()
     task.spawn(function()
         for _, pallet in pairs(pallets) do
             if pallet and pallet.Parent then
-                -- TP to pallet
-                root.CFrame = CFrame.new(pallet.Position + Vector3.new(0, 3, 0))
-                task.wait(0.2)
-                
-                -- Interact with pallet (Space to drop)
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-                task.wait(0.1)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-                task.wait(0.3)
+                local pos = getPalletPosition(pallet)
+                if pos then
+                    root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+                    task.wait(0.2)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                    task.wait(0.3)
+                end
             end
         end
     end)
@@ -937,7 +964,7 @@ addSection("AIMBOT")
 addToggle("Aimbot", false, function(v) if v then startAimbot() else stopAimbot() end end)
 
 addSection("AUTO ACTIONS")
-addToggle("Auto Generator (Speed Glitch)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
+addToggle("Auto Generator (Point Switch)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
 addToggle("Auto Heal", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
 addToggle("Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
 addButton("Drop All Pallets", dropAllPallets)
