@@ -471,11 +471,30 @@ local function tapAction()
     end
 end
 
--- Ultra-fast side‑to‑side Auto Generator
+-- Perfect Skillcheck Monitor (always hits perfect)
+local function isInPerfectZone()
+    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+    if not prompt then return false end
+    local check = prompt:WaitForChild("Check", 10)
+    if not check or not check.Visible then return false end
+    local line = check:WaitForChild("Line")
+    local goal = check:WaitForChild("Goal")
+    if not line or not goal then return false end
+    
+    local lr = line.Rotation % 360
+    local gr = goal.Rotation % 360
+    local ss = (gr + 101) % 360
+    local se = (gr + 115) % 360
+    return (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se)
+end
+
+-- Auto Generator: Rapid multi-point start + perfect skillcheck
 local autoGen = false
 local genConn = nil
-local lastTapTime = 0
-local TAP_COOLDOWN = 2.0   -- minimum seconds between tapping different generators
+local skillCheckConn = nil
+local currentGen = nil
+local currentPoints = {}
+local rapidPhaseDone = false
 
 local function findNewGenerator()
     local char = LocalPlayer.Character
@@ -503,19 +522,33 @@ local function findNewGenerator()
             end
         end
     end
-
     return bestGen, bestPts
 end
 
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    lastTapTime = 0
-    log("INFO", "Auto Generator ON (Ultra-Fast Side‑to‑Side)")
+    rapidPhaseDone = false
+    log("INFO", "Auto Generator ON (Rapid Start + Perfect Skillcheck)")
+
+    -- Connect skillcheck perfect tapper
+    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+    if prompt then
+        local check = prompt:WaitForChild("Check", 10)
+        if check then
+            skillCheckConn = check:GetPropertyChangedSignal("Visible"):Connect(function()
+                if not autoGen then return end
+                if check.Visible and isInPerfectZone() then
+                    tapAction()
+                end
+            end)
+        end
+    end
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
             if genConn then genConn:Disconnect() end
+            if skillCheckConn then skillCheckConn:Disconnect() end
             return
         end
 
@@ -526,32 +559,43 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        -- Find a generator that needs work
-        local gen, points = findNewGenerator()
-        if not gen then return end
+        -- If no generator or current completed, pick next
+        if not currentGen or genProgress(currentGen) >= 1 then
+            local gen, pts = findNewGenerator()
+            if not gen then return end
+            currentGen = gen
+            currentPoints = pts
+            rapidPhaseDone = false
+        end
 
-        -- Only tap if we haven't tapped recently (prevents emote error)
-        if (tick() - lastTapTime) >= TAP_COOLDOWN then
-            -- Move to first point and start repair
-            root.CFrame = CFrame.new(points[1].Position + Vector3.new(1.5, 0, 0))
+        -- Rapid multi-point start phase
+        if not rapidPhaseDone and #currentPoints >= 2 then
+            -- Point 1
+            root.CFrame = CFrame.new(currentPoints[1].Position + Vector3.new(1.5, 0, 0))
             task.wait(0.2)
             tapAction()
-            lastTapTime = tick()
-            task.wait(0.15)   -- tiny delay for repair to initiate
-        end
-
-        -- Spam success remote on all points rapidly
-        local startSpam = tick()
-        while autoGen and genProgress(gen) < 1 and tick() - startSpam < 5 do
-            for _, pt in pairs(points) do
-                if not autoGen or genProgress(gen) >= 1 then break end
-                pcall(function() genRemote:FireServer("success", 1, gen, pt) end)
-                task.wait(0.04)  -- ~40ms between points → extremely fast
+            task.wait(0.15)
+            -- Point 2
+            root.CFrame = CFrame.new(currentPoints[2].Position + Vector3.new(1.5, 0, 0))
+            task.wait(0.15)
+            tapAction()
+            task.wait(0.15)
+            -- Point 3 (if exists)
+            if currentPoints[3] then
+                root.CFrame = CFrame.new(currentPoints[3].Position + Vector3.new(1.5, 0, 0))
+                task.wait(0.15)
+                tapAction()
+                task.wait(0.15)
             end
-        end
-
-        if genProgress(gen) >= 1 then
-            log("SUCCESS", "Generator completed!")
+            -- Return to point 1 for the rest
+            root.CFrame = CFrame.new(currentPoints[1].Position + Vector3.new(1.5, 0, 0))
+            task.wait(0.1)
+            rapidPhaseDone = true
+            log("INFO", "Rapid phase complete, staying on point 1")
+        elseif rapidPhaseDone then
+            -- Wait for skillcheck to appear and be handled by the monitor
+            -- No action needed; the skillCheckConn will tap when perfect
+            task.wait(0.1)
         end
     end)
 end
@@ -559,6 +603,10 @@ end
 local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
+    if skillCheckConn then skillCheckConn:Disconnect() skillCheckConn = nil end
+    currentGen = nil
+    currentPoints = {}
+    rapidPhaseDone = false
     log("INFO", "Auto Generator OFF")
 end
 
@@ -891,4 +939,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Ultra Fast Gen Spam")
+log("SUCCESS", "VD Mini loaded – Rapid 3‑Point Start + Perfect Skillcheck")
