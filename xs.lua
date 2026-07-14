@@ -472,7 +472,7 @@ local function tapAction()
     end
 end
 
--- Auto Generator with integrated perfect skillcheck
+-- Auto Generator with integrated perfect skillcheck (angle difference)
 local autoGen = false
 local genConn = nil
 local skillCheckConnection = nil
@@ -513,9 +513,11 @@ local function onSkillCheckVisible()
     if check.Visible then
         local lr = line.Rotation % 360
         local gr = goal.Rotation % 360
-        local ss = (gr + 101) % 360
-        local se = (gr + 115) % 360
-        if (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se) then
+        -- Calculate angular difference, considering wrap-around
+        local diff = math.abs(lr - gr) % 360
+        if diff > 180 then diff = 360 - diff end
+        -- Perfect zone: within 15 degrees of the goal
+        if diff <= 15 then
             tapAction()
         end
     end
@@ -524,7 +526,7 @@ end
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    log("INFO", "Auto Generator ON (Perfect Skillcheck integrated)")
+    log("INFO", "Auto Generator ON (Perfect Skillcheck)")
     
     -- Connect skillcheck monitor
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
@@ -901,4 +903,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Auto Generator with perfect skillcheck")
+log("SUCCESS", "VD Mini loaded – Perfect skillcheck every time")
