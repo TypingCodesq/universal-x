@@ -471,6 +471,10 @@ local function tapAction()
     end
 end
 
+-- Anti‑spam & emote‑error prevention
+local lastTapTime = 0
+local TAP_COOLDOWN = 1.2   -- minimum seconds between action button taps
+
 -- Side‑to‑side Auto Generator with auto‑TP to next gen
 local autoGen = false
 local genConn = nil
@@ -510,7 +514,7 @@ local function findNewGenerator()
         currentGen = bestGen
         currentPoints = bestPts
         currentIndex = 1
-        log("INFO", "New generator selected")
+        log("INFO", "New generator: " .. #bestPts .. " points")
     else
         currentGen = nil
         currentPoints = {}
@@ -521,8 +525,9 @@ local function startAutoGen()
     if autoGen then return end
     autoGen = true
     repairState = "idle"
+    lastTapTime = 0
     findNewGenerator()
-    log("INFO", "Auto Generator ON (Side‑to‑Side + Auto‑TP)")
+    log("INFO", "Auto Generator ON (Safe Side‑to‑Side)")
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -548,7 +553,7 @@ local function startAutoGen()
         local skillVisible = check and check.Visible
 
         if repairState == "idle" then
-            if not skillVisible then
+            if not skillVisible and (tick() - lastTapTime) >= TAP_COOLDOWN then
                 if #currentPoints == 0 then return end
                 local point = currentPoints[currentIndex]
                 if not point then return end
@@ -556,6 +561,7 @@ local function startAutoGen()
                 root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
                 task.wait(0.2)
                 tapAction()
+                lastTapTime = tick()
                 repairState = "waitingForSkillcheck"
                 log("INFO", "Repair started at point " .. currentIndex)
             end
@@ -568,12 +574,12 @@ local function startAutoGen()
             end
         elseif repairState == "skillcheckActive" then
             if not skillVisible then
-                -- Cycle completed, move to next point for the next repair cycle
+                -- repair cycle finished, move to next point (side‑to‑side)
                 if #currentPoints > 1 then
                     currentIndex = (currentIndex % #currentPoints) + 1
                 end
                 repairState = "idle"
-                log("INFO", "Repair cycle finished, moving to point " .. currentIndex)
+                log("INFO", "Cycle finished, next point: " .. currentIndex)
             end
         end
     end)
@@ -917,4 +923,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Side‑to‑Side + Auto‑TP")
+log("SUCCESS", "VD Mini loaded – No emote errors, perfect side‑to‑side")
