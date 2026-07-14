@@ -435,9 +435,11 @@ local function isCharacterBusy(char)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return true end
     if hum.Health <= 0 or hum.Sit or hum.PlatformStand then return true end
+    if char:GetAttribute("Hooked") or char:GetAttribute("Carried") or char:GetAttribute("Tagged") then return true end
     return false
 end
 
+-- Improved action tap that also checks button visibility
 local function tapAction()
     pcall(function()
         local current = LocalPlayer:WaitForChild("PlayerGui")
@@ -445,13 +447,21 @@ local function tapAction()
             current = current and current:FindFirstChild(seg)
         end
         if current and current:IsA("GuiObject") then
-            local pos = current.AbsolutePosition
-            local size = current.AbsoluteSize
-            local ins = GuiService:GetGuiInset()
-            local cx, cy = pos.X + size.X/2 + ins.X, pos.Y + size.Y/2 + ins.Y
-            VirtualInputManager:SendTouchEvent(8822, 0, cx, cy)
-            task.wait(0.02)
-            VirtualInputManager:SendTouchEvent(8822, 2, cx, cy)
+            -- Only tap if visible
+            if current.Visible then
+                local pos = current.AbsolutePosition
+                local size = current.AbsoluteSize
+                local ins = GuiService:GetGuiInset()
+                local cx, cy = pos.X + size.X/2 + ins.X, pos.Y + size.Y/2 + ins.Y
+                VirtualInputManager:SendTouchEvent(8822, 0, cx, cy)
+                task.wait(0.02)
+                VirtualInputManager:SendTouchEvent(8822, 2, cx, cy)
+                log("INFO", "Action button tapped")
+            else
+                log("INFO", "Action button not visible")
+            end
+        else
+            log("ERROR", "Action button not found")
         end
     end)
 end
@@ -476,6 +486,7 @@ local function startAutoSkill()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
         
+        -- Determine if we are at a generator
         local nearGen, genModel, genPoint
         for _, g in pairs(getGenerators()) do
             for i = 1, 4 do
@@ -556,17 +567,19 @@ local function startAutoGen()
         local gen, pts = getClosestGenWithPoints()
         if not gen then return end
         
+        -- Move through points, tapping action to trigger skillcheck
         for _, pt in pairs(pts) do
             if not autoGen or genProgress(gen) >= 1 then break end
             root.CFrame = CFrame.new(pt.Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.15)
-            tapAction()
-            task.wait(0.5)
+            task.wait(0.2)
+            tapAction()  -- start repair
+            task.wait(0.5) -- wait for skillcheck to appear and be auto-completed
         end
         
+        -- If still not complete, stay on first point and keep trying
         if genProgress(gen) < 1 and pts[1] then
             root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.1)
+            task.wait(0.2)
             tapAction()
         end
     end)
@@ -577,6 +590,9 @@ local function stopAutoGen()
     if genConn then genConn:Disconnect() genConn = nil end
     log("INFO", "Auto Generator OFF")
 end
+
+-- (God Mode, Heal, ESP, Aimbot, Fly, Noclip, Fullbright remain unchanged from previous correct version)
+-- They are included below for completeness
 
 local god = false
 local function godLoop()
@@ -656,7 +672,6 @@ local function playerESP(plr)
     if plr == LocalPlayer or espP[plr] then return end
     local c = plr.Character
     if not c then return end
-    
     local hl = Instance.new("Highlight")
     hl.FillTransparency = 0.5
     hl.OutlineTransparency = 0
@@ -781,16 +796,13 @@ local function startFly()
     local hrp = c:FindFirstChild("HumanoidRootPart")
     local hum = c:FindFirstChild("Humanoid")
     if not hrp or not hum then return end
-    
     bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(40000, 40000, 40000)
     bv.Parent = hrp
-    
     bg = Instance.new("BodyGyro")
     bg.MaxTorque = Vector3.new(40000, 40000, 40000)
     bg.P = 1000
     bg.Parent = hrp
-    
     flyConn = RunService.Heartbeat:Connect(function()
         if not fly then return end
         bg.CFrame = Camera.CFrame
@@ -855,6 +867,7 @@ RunService.Heartbeat:Connect(function()
     Lighting.Brightness = 2
 end)
 
+-- Build UI
 sec(Survivor, "GENERATOR")
 toggle(Survivor, "Auto Generator", false, function(v) if v then startAutoGen() else stopAutoGen() end end)
 toggle(Survivor, "Auto Skillcheck", false, function(v) if v then startAutoSkill() else stopAutoSkill() end end)
@@ -906,4 +919,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded")
+log("SUCCESS", "VD Mini loaded – use Auto Generator + Auto Skillcheck")
