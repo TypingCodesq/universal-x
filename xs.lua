@@ -1,85 +1,128 @@
--- VIOLENCE DISTRICT HUB - DELTA MOBILE (Auto Gen Mejorado)
+-- VIOLENCE DISTRICT ULTIMATE - DELTA MOBILE
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Workspace = game:GetService("Workspace")
-
 local player = Players.LocalPlayer
-local root = nil
 
 _G.RheyzHub = {
     Survivor = {
+        AutoSkillCheck = false,
         AutoGenerator = false,
+        AutoParry = false,
+        AutoHeal = false,
         DropAllPallets = false,
         UnlockPallets = false,
+        NoSlowdown = false,
+        FastVault = false,
+        BypassExit = false
     },
-    Misc = { WalkSpeed = 18 }
+    Killer = {
+        NoCooldown = false,
+        InstantHit = false,
+        SpeedMulti = 2.0
+    },
+    Aimbot = {
+        Enabled = false,
+        FOV = 250,
+        Smoothness = 8
+    },
+    ESP = {
+        Enabled = true,
+        Players = true,
+        Generators = true,
+        Pallets = true
+    },
+    Misc = {
+        WalkSpeed = 18,
+        Fly = false,
+        Noclip = false,
+        GodMode = false
+    }
 }
 
-local currentGen = nil
-local autoGenConn = nil
+-- ==================== PALLETS FIX ====================
+local function GetRootPart(obj)
+    if not obj then return nil end
+    if obj:FindFirstChild("HumanoidRootPart") then return obj.HumanoidRootPart end
+    if obj.PrimaryPart then return obj.PrimaryPart end
+    for _, part in pairs(obj:GetDescendants()) do
+        if part:IsA("BasePart") and part.Size.Magnitude > 3 then
+            return part
+        end
+    end
+    for _, part in pairs(obj:GetDescendants()) do
+        if part:IsA("BasePart") then return part end
+    end
+    return nil
+end
 
-local function GetNearestGenerator()
-    local nearest = nil
-    local shortest = math.huge
-    local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return nil end
+local function GetAllPallets()
+    local pallets = {}
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v.Name:lower():find("pallet") then
+            table.insert(pallets, v)
+        end
+    end
+    return pallets
+end
 
-    for _, gen in pairs(Workspace:GetDescendants()) do
-        if gen.Name == "Generator" or gen.Name:lower():find("gen") then
-            local gRoot = gen:FindFirstChild("HumanoidRootPart") or gen.PrimaryPart or gen:FindFirstChildWhichIsA("BasePart")
-            if gRoot then
-                local dist = (myRoot.Position - gRoot.Position).Magnitude
-                if dist < shortest then
-                    shortest = dist
-                    nearest = gen
+local function DropAllPalletsWithTP()
+    local pallets = GetAllPallets()
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _, pallet in pairs(pallets) do
+        local pRoot = GetRootPart(pallet)
+        if pRoot then
+            root.CFrame = pRoot.CFrame * CFrame.new(3, 6, 3)
+            wait(0.12)
+            pRoot.Velocity = Vector3.new(0, -1400, 0)
+            for _, part in pairs(pallet:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Velocity = Vector3.new(0, -1200, 0)
                 end
             end
         end
+        wait(0.1)
     end
-    return nearest
+    print("✅ Drop All Pallets completado")
 end
 
+-- ==================== AUTO GENERATOR ====================
 local function AutoGenerator()
-    if autoGenConn then autoGenConn:Disconnect() end
-
-    autoGenConn = RunService.Heartbeat:Connect(function()
-        if not _G.RheyzHub.Survivor.AutoGenerator then 
-            if autoGenConn then autoGenConn:Disconnect() end
-            return 
-        end
-
+    local conn = RunService.Heartbeat:Connect(function()
+        if not _G.RheyzHub.Survivor.AutoGenerator then conn:Disconnect() return end
         local char = player.Character
         if not char then return end
-        root = char:FindFirstChild("HumanoidRootPart")
+        local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        local gen = GetNearestGenerator()
-        if not gen then return end
-
-        local genRoot = gen:FindFirstChild("HumanoidRootPart") or gen.PrimaryPart or gen:FindFirstChildWhichIsA("BasePart")
-        if not genRoot then return end
-
-        -- Alternar lados del generador
-        local side = math.random(1,2) == 1 and 3 or -3
-        root.CFrame = genRoot.CFrame * CFrame.new(side, 4, 0) * CFrame.Angles(0, math.rad(90), 0)
-
-        -- Mantener E presionado
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        wait(0.4)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        for _, gen in pairs(Workspace:GetDescendants()) do
+            if gen.Name == "Generator" then
+                local gRoot = GetRootPart(gen)
+                if gRoot then
+                    local side = math.random(1,2) == 1 and 4 or -4
+                    root.CFrame = gRoot.CFrame * CFrame.new(side, 5, 0)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                    wait(0.4)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                end
+            end
+        end
     end)
 end
 
--- UI
+-- ==================== UI ====================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "VDHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 340, 0, 460)
-Main.Position = UDim2.new(0.5, -170, 0.25, 0)
+Main.Size = UDim2.new(0, 340, 0, 520)
+Main.Position = UDim2.new(0.5, -170, 0.2, 0)
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 30)
 Main.Active = true
 Main.Draggable = true
@@ -122,24 +165,16 @@ local function AddBtn(text, callback)
     btn.TextSize = 15
     btn.Parent = Main
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-    
     btn.MouseButton1Click:Connect(callback)
     y = y + 62
 end
 
-AddBtn("AUTO GENERATOR (Alterna lados)", function()
+AddBtn("AUTO GENERATOR", function()
     _G.RheyzHub.Survivor.AutoGenerator = not _G.RheyzHub.Survivor.AutoGenerator
-    if _G.RheyzHub.Survivor.AutoGenerator then
-        AutoGenerator()
-        print("Auto Generator ACTIVADO")
-    else
-        print("Auto Generator DESACTIVADO")
-    end
+    if _G.RheyzHub.Survivor.AutoGenerator then AutoGenerator() end
 end)
 
-AddBtn("DROP ALL PALLETS (TP + Throw)", function()
-    DropAllPalletsWithTP()
-end)
+AddBtn("DROP ALL PALLETS (TP + Throw)", DropAllPalletsWithTP)
 
 AddBtn("Unlock All Pallets", function()
     _G.RheyzHub.Survivor.UnlockPallets = not _G.RheyzHub.Survivor.UnlockPallets
@@ -149,4 +184,23 @@ AddBtn("WalkSpeed 30", function()
     _G.RheyzHub.Misc.WalkSpeed = 30
 end)
 
-print("✅ Hub cargado - Auto Gen mejorado")
+AddBtn("Toggle Fly", function()
+    _G.RheyzHub.Misc.Fly = not _G.RheyzHub.Misc.Fly
+end)
+
+AddBtn("Toggle Noclip", function()
+    _G.RheyzHub.Misc.Noclip = not _G.RheyzHub.Misc.Noclip
+end)
+
+AddBtn("God Mode", function()
+    _G.RheyzHub.Misc.GodMode = not _G.RheyzHub.Misc.GodMode
+end)
+
+RunService.Heartbeat:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = _G.RheyzHub.Misc.WalkSpeed
+    end
+end)
+
+print("✅ Hub completo cargado")
