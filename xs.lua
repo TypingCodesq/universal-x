@@ -1,4 +1,4 @@
--- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.0
+-- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.1
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -22,16 +22,13 @@ _G.RheyzHub = {
     Killer = {
         NoCooldown = false,
         InstantHit = false,
-        SpeedMulti = 2.2,
+        SpeedMulti = 2.5,
         NoStun = false,
         InstantGrab = false
     },
-    Aimbot = { Enabled = false, FOV = 220 },
-    ESP = { Enabled = true, Players = true, Generators = true },
     Misc = { WalkSpeed = 18, Noclip = false, GodMode = false }
 }
 
--- ==================== PALLETS ====================
 local function GetAllPallets()
     local pallets = {}
     for _, v in pairs(Workspace:GetDescendants()) do
@@ -50,15 +47,19 @@ local function DropAllPalletsWithTP()
     for _, pallet in pairs(pallets) do
         local pRoot = pallet:FindFirstChild("HumanoidRootPart") or pallet.PrimaryPart
         if pRoot then
-            root.CFrame = pRoot.CFrame * CFrame.new(3, 7, 3)
-            wait(0.12)
-            pRoot.Velocity = Vector3.new(0, -1400, 0)
+            root.CFrame = pRoot.CFrame * CFrame.new(4, 8, 4)
+            wait(0.15)
+            pRoot.Velocity = Vector3.new(0, -1600, 0)
+            for _, part in pairs(pallet:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Velocity = Vector3.new(0, -1400, 0)
+                end
+            end
         end
-        wait(0.08)
+        wait(0.1)
     end
 end
 
--- ==================== AUTO GENERATOR ====================
 local function AutoGenerator()
     if not _G.RheyzHub.Survivor.AutoGenerator then return end
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -66,11 +67,11 @@ local function AutoGenerator()
 
     for _, gen in pairs(Workspace:GetDescendants()) do
         if gen.Name == "Generator" then
-            local point = gen:FindFirstChild("GeneratorPoint1") or gen.PrimaryPart
-            if point and (root.Position - point.Position).Magnitude < 30 then
-                root.CFrame = point.CFrame * CFrame.new(0, 5, 0)
+            local point = gen:FindFirstChild("GeneratorPoint1") or gen:FindFirstChild("GeneratorPoint2") or gen.PrimaryPart
+            if point and (root.Position - point.Position).Magnitude < 35 then
+                root.CFrame = point.CFrame * CFrame.new(0, 6, 0)
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                wait(0.6)
+                wait(0.7)
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
                 break
             end
@@ -85,16 +86,16 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 360, 0, 520)
-Main.Position = UDim2.new(0.5, -180, 0.2, 0)
-Main.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
+Main.Size = UDim2.new(0, 380, 0, 580)
+Main.Position = UDim2.new(0.5, -190, 0.15, 0)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 Main.Active = true
 Main.Draggable = true
 Main.Parent = ScreenGui
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
 
 local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 50)
+TopBar.Size = UDim2.new(1, 0, 0, 55)
 TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 TopBar.Parent = Main
 Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 16)
@@ -105,11 +106,11 @@ Title.BackgroundTransparency = 1
 Title.Text = "VIOLENCE DISTRICT HUB"
 Title.TextColor3 = Color3.fromRGB(100, 170, 255)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 20
+Title.TextSize = 21
 Title.Parent = TopBar
 
 local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 65, 0, 65)
+ToggleBtn.Size = UDim2.new(0, 70, 0, 70)
 ToggleBtn.Position = UDim2.new(0.05, 0, 0.35, 0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
 ToggleBtn.Text = "VD"
@@ -117,26 +118,26 @@ ToggleBtn.TextColor3 = Color3.new(1,1,1)
 ToggleBtn.Font = Enum.Font.GothamBold
 ToggleBtn.TextSize = 24
 ToggleBtn.Parent = ScreenGui
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 16)
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 18)
 
 ToggleBtn.MouseButton1Click:Connect(function()
     Main.Visible = not Main.Visible
 end)
 
-local y = 60
+local y = 70
 local function AddBtn(text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 52)
+    btn.Size = UDim2.new(0.9, 0, 0, 55)
     btn.Position = UDim2.new(0.05, 0, 0, y)
     btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
     btn.Text = text
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 15
+    btn.TextSize = 16
     btn.Parent = Main
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     btn.MouseButton1Click:Connect(callback)
-    y = y + 60
+    y = y + 65
 end
 
 AddBtn("DROP ALL PALLETS (TP + Throw)", DropAllPalletsWithTP)
@@ -146,7 +147,9 @@ AddBtn("Auto Skillcheck", function() _G.RheyzHub.Survivor.AutoSkillCheck = not _
 AddBtn("Auto Parry", function() _G.RheyzHub.Survivor.AutoParry = not _G.RheyzHub.Survivor.AutoParry end)
 AddBtn("Auto Heal", function() _G.RheyzHub.Survivor.AutoHeal = not _G.RheyzHub.Survivor.AutoHeal end)
 AddBtn("No Slowdown", function() _G.RheyzHub.Survivor.NoSlowdown = not _G.RheyzHub.Survivor.NoSlowdown end)
-AddBtn("Killer Speed x2.2", function() _G.RheyzHub.Killer.SpeedMulti = 2.2 end)
+AddBtn("Killer Speed x2.5", function() _G.RheyzHub.Killer.SpeedMulti = 2.5 end)
+AddBtn("Instant Hit (Killer)", function() _G.RheyzHub.Killer.InstantHit = not _G.RheyzHub.Killer.InstantHit end)
+AddBtn("No Stun (Killer)", function() _G.RheyzHub.Killer.NoStun = not _G.RheyzHub.Killer.NoStun end)
 AddBtn("Noclip", function() _G.RheyzHub.Misc.Noclip = not _G.RheyzHub.Misc.Noclip end)
 AddBtn("God Mode", function() _G.RheyzHub.Misc.GodMode = not _G.RheyzHub.Misc.GodMode end)
 AddBtn("WalkSpeed 30", function() _G.RheyzHub.Misc.WalkSpeed = 30 end)
@@ -191,5 +194,5 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("✅ VD Hub Mobile v4.0 Cargado")
-print("Arrastra la ventana | Usa los botones")
+print("✅ VD Hub v4.1 Cargado")
+print("Arrastra la ventana | Prueba los botones")
