@@ -471,93 +471,110 @@ local function tapAction()
     end
 end
 
--- Auto Generator with direct RemoteEvent completion – no more angle guessing
+-- Side‑to‑side Auto Generator with auto‑TP to next gen
 local autoGen = false
 local genConn = nil
 local repairState = "idle"   -- "idle", "waitingForSkillcheck", "skillcheckActive"
+local currentGen = nil
+local currentPoints = {}
+local currentIndex = 1
 
-local function getClosestGenPoint()
+local function findNewGenerator()
     local char = LocalPlayer.Character
-    if not char then return nil, nil end
+    if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil, nil end
-    
-    local bestGen, bestPoint, bestDist = nil, nil, math.huge
+    if not root then return end
+
+    local bestGen, bestDist, bestPts = nil, math.huge, {}
     for _, g in pairs(getGenerators()) do
         if genProgress(g) < 1 then
+            local pts = {}
             for i = 1, 4 do
                 local p = g:FindFirstChild("GeneratorPoint" .. i)
-                if p then
+                if p then table.insert(pts, p) end
+            end
+            if #pts >= 1 then
+                for _, p in pairs(pts) do
                     local d = (root.Position - p.Position).Magnitude
                     if d < bestDist then
                         bestDist = d
                         bestGen = g
-                        bestPoint = p
+                        bestPts = pts
                     end
                 end
             end
         end
     end
-    return bestGen, bestPoint
+
+    if bestGen then
+        currentGen = bestGen
+        currentPoints = bestPts
+        currentIndex = 1
+        log("INFO", "New generator selected")
+    else
+        currentGen = nil
+        currentPoints = {}
+    end
 end
 
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
     repairState = "idle"
-    log("INFO", "Auto Generator ON (Direct Remote – Always Perfect)")
-    
+    findNewGenerator()
+    log("INFO", "Auto Generator ON (Side‑to‑Side + Auto‑TP)")
+
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
             if genConn then genConn:Disconnect() end
             return
         end
-        
+
         if not waitUntilFree() then return end
-        
+
         local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-        
-        local gen, point = getClosestGenPoint()
-        if not gen or not point then
-            repairState = "idle"
-            return
+
+        -- If no current gen or it's completed, pick next
+        if not currentGen or genProgress(currentGen) >= 1 then
+            findNewGenerator()
+            if not currentGen then return end
         end
-        
+
         local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
         local check = prompt and prompt:WaitForChild("Check", 10)
         local skillVisible = check and check.Visible
-        
+
         if repairState == "idle" then
-            if not skillVisible and genProgress(gen) < 1 then
-                -- move to point and start repair
+            if not skillVisible then
+                if #currentPoints == 0 then return end
+                local point = currentPoints[currentIndex]
+                if not point then return end
+
                 root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
-                task.wait(0.3)
+                task.wait(0.2)
                 tapAction()
                 repairState = "waitingForSkillcheck"
-                log("INFO", "Repair started")
+                log("INFO", "Repair started at point " .. currentIndex)
             end
         elseif repairState == "waitingForSkillcheck" then
             if skillVisible then
                 repairState = "skillcheckActive"
                 log("INFO", "Skillcheck appeared, sending success...")
-                -- immediately complete the skillcheck via remote
-                pcall(function() genRemote:FireServer("success", 1, gen, point) end)
-                task.wait(0.3)
+                pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[currentIndex]) end)
+                task.wait(0.2)
             end
         elseif repairState == "skillcheckActive" then
             if not skillVisible then
-                -- skillcheck UI disappeared, repair cycle complete
-                if genProgress(gen) >= 1 then
-                    repairState = "idle"
-                    log("SUCCESS", "Generator finished!")
-                else
-                    repairState = "idle"   -- go for next cycle
+                -- Cycle completed, move to next point for the next repair cycle
+                if #currentPoints > 1 then
+                    currentIndex = (currentIndex % #currentPoints) + 1
                 end
+                repairState = "idle"
+                log("INFO", "Repair cycle finished, moving to point " .. currentIndex)
             end
-            -- If still visible, do nothing (the remote already sent)
         end
     end)
 end
@@ -566,6 +583,8 @@ local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
     repairState = "idle"
+    currentGen = nil
+    currentPoints = {}
     log("INFO", "Auto Generator OFF")
 end
 
@@ -898,4 +917,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Perfect Generator (remote)")
+log("SUCCESS", "VD Mini loaded – Side‑to‑Side + Auto‑TP")
