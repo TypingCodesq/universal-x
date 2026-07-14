@@ -455,24 +455,7 @@ local function waitUntilFree()
     return false
 end
 
-local function tapAction()
-    pcall(function()
-        local current = LocalPlayer:WaitForChild("PlayerGui")
-        for seg in string.gmatch("Survivor-mob.Controls.action.check", "[^%.]+") do
-            current = current and current:FindFirstChild(seg)
-        end
-        if current and current:IsA("GuiObject") then
-            local pos = current.AbsolutePosition
-            local size = current.AbsoluteSize
-            local ins = GuiService:GetGuiInset()
-            local cx, cy = pos.X + size.X/2 + ins.X, pos.Y + size.Y/2 + ins.Y
-            VirtualInputManager:SendTouchEvent(8822, 0, cx, cy)
-            task.wait(0.02)
-            VirtualInputManager:SendTouchEvent(8822, 2, cx, cy)
-        end
-    end)
-end
-
+-- Auto Skillcheck
 local autoSkill = false
 local skConn
 
@@ -521,36 +504,33 @@ local function stopAutoSkill()
     log("INFO", "Auto Skillcheck OFF")
 end
 
+-- Simplified Auto Generator – just one point, repeat until 100%
 local autoGen = false
 local genConn
 
-local function getClosestGenWithPoints()
+local function getClosestGenPoint()
     local char = LocalPlayer.Character
     if not char then return nil, nil end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return nil, nil end
     
-    local bestGen, bestDist, bestPts = nil, math.huge, {}
+    local bestGen, bestPoint, bestDist = nil, nil, math.huge
     for _, g in pairs(getGenerators()) do
         if genProgress(g) < 1 then
-            local pts = {}
             for i = 1, 4 do
                 local p = g:FindFirstChild("GeneratorPoint" .. i)
-                if p then table.insert(pts, p) end
-            end
-            if #pts >= 1 then
-                for _, p in pairs(pts) do
+                if p then
                     local d = (root.Position - p.Position).Magnitude
                     if d < bestDist then
                         bestDist = d
                         bestGen = g
-                        bestPts = pts
+                        bestPoint = p
                     end
                 end
             end
         end
     end
-    return bestGen, bestPts
+    return bestGen, bestPoint
 end
 
 local function fireGenRemote(gen, point)
@@ -566,7 +546,7 @@ end
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    log("INFO", "Auto Generator ON (Safe Side-to-Side)")
+    log("INFO", "Auto Generator ON (Single Point Perfect)")
     
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -581,46 +561,25 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
         
-        local gen, pts = getClosestGenWithPoints()
-        if not gen then return end
+        local gen, point = getClosestGenPoint()
+        if not gen or not point then return end
         
-        if #pts == 1 then
-            root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.15)
-            fireGenRemote(gen, pts[1])
-            return
+        -- Teleport to the point
+        root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
+        task.wait(0.2)
+        
+        -- Keep firing until generator is full
+        local prog = genProgress(gen)
+        log("INFO", "Starting generator repair, current progress: " .. math.floor(prog*100) .. "%")
+        while autoGen and prog < 1 do
+            if not waitUntilFree() then break end
+            fireGenRemote(gen, point)
+            task.wait(0.5)
+            prog = genProgress(gen)
         end
         
-        -- Side-to-side with wait for free
-        root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
-        task.wait(0.1)
-        fireGenRemote(gen, pts[1])
-        task.wait(0.7)
-        
-        if not autoGen or genProgress(gen) >= 1 then return end
-        if not waitUntilFree() then return end
-        root.CFrame = CFrame.new(pts[2].Position + Vector3.new(1.5, 0, 0))
-        task.wait(0.1)
-        fireGenRemote(gen, pts[2])
-        task.wait(0.7)
-        
-        if #pts >= 3 and autoGen and genProgress(gen) < 1 then
-            if not waitUntilFree() then return end
-            root.CFrame = CFrame.new(pts[3].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.1)
-            fireGenRemote(gen, pts[3])
-            task.wait(0.7)
-        end
-        
-        if autoGen and genProgress(gen) < 1 then
-            if not waitUntilFree() then return end
-            root.CFrame = CFrame.new(pts[1].Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.1)
-            while autoGen and genProgress(gen) < 1 do
-                if not waitUntilFree() then break end
-                fireGenRemote(gen, pts[1])
-                task.wait(0.5)
-            end
+        if prog >= 1 then
+            log("SUCCESS", "Generator completed!")
         end
     end)
 end
@@ -631,8 +590,7 @@ local function stopAutoGen()
     log("INFO", "Auto Generator OFF")
 end
 
--- (rest of functions: god, self heal, team heal, esp, aimbot, fly, noclip... same as before, no changes needed)
--- I'll include them to keep the script complete.
+-- (rest of functions unchanged)
 
 local god = false
 local function godLoop()
@@ -962,4 +920,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Perfect Gen, no emote errors")
+log("SUCCESS", "VD Mini loaded – Simple Perfect Gen")
