@@ -1,3 +1,5 @@
+print("VD Script executing...")
+
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
@@ -393,16 +395,17 @@ local function getRole()
     return string.upper(_G.RoleData.TeamName or "")
 end
 
-local genRemote
-local healRemote
+local genRemote, healRemote
 
 pcall(function()
-    genRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Generator"):WaitForChild("SkillCheckResultEvent")
-    healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
+    genRemote = ReplicatedStorage:WaitForChild("Remotes", 10):WaitForChild("Generator", 10):WaitForChild("SkillCheckResultEvent", 10)
+end)
+pcall(function()
+    healRemote = ReplicatedStorage:WaitForChild("Remotes", 10):WaitForChild("Healing", 10):WaitForChild("SkillCheckResultEvent", 10)
 end)
 
-if not genRemote then log("ERROR", "Generator remote not found") end
-if not healRemote then log("ERROR", "Heal remote not found") end
+if not genRemote then log("ERROR", "Gen remote missing") end
+if not healRemote then log("ERROR", "Heal remote missing") end
 
 local function getGenerators()
     local g = {}
@@ -660,15 +663,11 @@ local function playerESP(plr)
     hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     hl.Adornee = c
     hl.Parent = CoreGui
-    
     espP[plr] = {hl = hl}
 end
 local function remPlayerESP(plr)
     local d = espP[plr]
-    if d then
-        if d.hl then d.hl:Destroy() end
-        espP[plr] = nil
-    end
+    if d then if d.hl then d.hl:Destroy() end espP[plr] = nil end
 end
 local function updatePlayerColors()
     if not _G.FeatureState.espPlayer then return end
