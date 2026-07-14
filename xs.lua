@@ -1,7 +1,6 @@
--- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.5 (GUI Moderna + Auto Gen Full)
+-- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.6 (FIX FINAL)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Workspace = game:GetService("Workspace")
 
@@ -17,35 +16,46 @@ _G.RheyzHub = {
         UnlockPallets = false,
         NoSlowdown = false
     },
-    Killer = {
-        SpeedMulti = 2.5,
-        InstantHit = false,
-        NoStun = false
-    },
+    Killer = { SpeedMulti = 2.5, InstantHit = false },
     Misc = { WalkSpeed = 18, Noclip = false, GodMode = false }
 }
 
--- ==================== DROP PALLETS ====================
-local function DropAllPalletsWithTP()
+-- ==================== PALLETS (FIX) ====================
+local function GetAllPallets()
     local pallets = {}
     for _, v in pairs(Workspace:GetDescendants()) do
-        if v.Name:lower():find("pallet") then table.insert(pallets, v) end
+        if v.Name:lower():find("pallet") then
+            table.insert(pallets, v)
+        end
     end
+    return pallets
+end
+
+local function DropAllPalletsWithTP()
+    local pallets = GetAllPallets()
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    for _, p in pairs(pallets) do
-        local pRoot = p:FindFirstChild("HumanoidRootPart") or p.PrimaryPart
+    for _, pallet in pairs(pallets) do
+        local pRoot = pallet:FindFirstChild("HumanoidRootPart") 
+                   or pallet.PrimaryPart 
+                   or pallet:FindFirstChildWhichIsA("BasePart")
+        
         if pRoot then
-            root.CFrame = pRoot.CFrame * CFrame.new(4, 9, 4)
-            wait(0.15)
-            pRoot.Velocity = Vector3.new(0, -2000, 0)
+            root.CFrame = pRoot.CFrame * CFrame.new(4, 10, 4)
+            wait(0.18)
+            pRoot.Velocity = Vector3.new(0, -2200, 0)
+            for _, part in pairs(pallet:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Velocity = Vector3.new(0, -2000, 0)
+                end
+            end
         end
-        wait(0.1)
+        wait(0.12)
     end
 end
 
--- ==================== AUTO GENERATOR FULL (Auto Click) ====================
+-- ==================== AUTO GENERATOR FULL ====================
 local function AutoGenerator()
     if not _G.RheyzHub.Survivor.AutoGenerator then return end
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -55,15 +65,26 @@ local function AutoGenerator()
         if gen.Name == "Generator" then
             for i = 1, 4 do
                 local point = gen:FindFirstChild("GeneratorPoint"..i)
-                if point and (root.Position - point.Position).Magnitude < 40 then
-                    root.CFrame = point.CFrame * CFrame.new(0, -1.5, 0)
+                if point then
+                    root.CFrame = point.CFrame * CFrame.new(0, -1.8, 0)
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                    wait(0.4)
+                    wait(0.45)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                    wait(0.6)
+                    wait(0.55)
                 end
             end
         end
+    end
+end
+
+-- ==================== AUTO HEAL + ANTI GRAB ====================
+local function AutoHeal()
+    if not _G.RheyzHub.Survivor.AutoHeal then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        hum.Health = hum.MaxHealth
     end
 end
 
@@ -76,7 +97,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, 400, 0, 650)
 Main.Position = UDim2.new(0.5, -200, 0.1, 0)
-Main.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+Main.BackgroundColor3 = Color3.fromRGB(13, 13, 22)
 Main.Active = true
 Main.Draggable = true
 Main.Parent = ScreenGui
@@ -84,14 +105,14 @@ Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 20)
 
 local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 65)
-TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+TopBar.BackgroundColor3 = Color3.fromRGB(22, 22, 38)
 TopBar.Parent = Main
 Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 20)
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "VIOLENCE DISTRICT"
+Title.Text = "VIOLENCE DISTRICT HUB"
 Title.TextColor3 = Color3.fromRGB(130, 200, 255)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 24
@@ -158,7 +179,7 @@ RunService.Heartbeat:Connect(function()
 
     if _G.RheyzHub.Survivor.AutoGenerator then AutoGenerator() end
     if _G.RheyzHub.Survivor.AutoHeal and hum then
-        if hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
+        hum.Health = hum.MaxHealth
     end
     if _G.RheyzHub.Misc.GodMode and hum then
         hum.MaxHealth = math.huge
@@ -171,4 +192,4 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("✅ VD Hub v4.5 Cargado")
+print("✅ VD Hub v4.6 Cargado - GUI Moderna")
