@@ -471,9 +471,11 @@ local function tapAction()
     end
 end
 
--- Auto Generator with continuous perfect skillcheck
+-- Auto Generator with one-tap-per-cycle perfect skillcheck
 local autoGen = false
 local genConn = nil
+local repairState = "idle"       -- idle, waitingForSkillcheck, skillcheckActive
+local skillCheckTapped = false
 
 local function getClosestGenPoint()
     local char = LocalPlayer.Character
@@ -519,7 +521,9 @@ end
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    log("INFO", "Auto Generator ON (Continuous Perfect Skillcheck)")
+    repairState = "idle"
+    skillCheckTapped = false
+    log("INFO", "Auto Generator ON (Single‑Tap Perfect)")
     
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -535,30 +539,55 @@ local function startAutoGen()
         if not root then return end
         
         local gen, point = getClosestGenPoint()
-        if not gen or not point then return end
-        
-        -- If skillcheck UI is visible, handle the skillcheck
-        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-        local check = prompt and prompt:WaitForChild("Check", 10)
-        if check and check.Visible then
-            if isInPerfectZone() then
-                tapAction()
-                task.wait(0.3) -- wait for the skillcheck to disappear and progress
-            end
-            return -- don't TP while repairing
+        if not gen or not point then
+            repairState = "idle"
+            return
         end
         
-        -- If not repairing, TP to point and start
-        root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
-        task.wait(0.3)
-        tapAction() -- start the repair
-        task.wait(0.5) -- wait for skillcheck UI to appear
+        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+        local check = prompt and prompt:WaitForChild("Check", 10)
+        local skillVisible = check and check.Visible
+        
+        if repairState == "idle" then
+            if not skillVisible and genProgress(gen) < 1 then
+                -- move to point and start repair
+                root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
+                task.wait(0.3)
+                tapAction()
+                repairState = "waitingForSkillcheck"
+                log("INFO", "Generator repair started")
+            end
+        elseif repairState == "waitingForSkillcheck" then
+            if skillVisible then
+                repairState = "skillcheckActive"
+                skillCheckTapped = false
+                log("INFO", "Skillcheck appeared")
+            end
+        elseif repairState == "skillcheckActive" then
+            if skillVisible then
+                if not skillCheckTapped and isInPerfectZone() then
+                    tapAction()
+                    skillCheckTapped = true
+                    log("SUCCESS", "Perfect skillcheck!")
+                end
+            else
+                -- skillcheck disappeared, check if generator complete
+                if genProgress(gen) >= 1 then
+                    repairState = "idle"
+                    log("SUCCESS", "Generator completed!")
+                else
+                    -- next skillcheck cycle
+                    repairState = "idle"
+                end
+            end
+        end
     end)
 end
 
 local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
+    repairState = "idle"
     log("INFO", "Auto Generator OFF")
 end
 
@@ -891,4 +920,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Perfect Skillcheck Guaranteed")
+log("SUCCESS", "VD Mini loaded – Single tap, perfect skillcheck")
