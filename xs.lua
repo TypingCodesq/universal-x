@@ -471,17 +471,11 @@ local function tapAction()
     end
 end
 
--- Anti‑spam & emote‑error prevention
-local lastTapTime = 0
-local TAP_COOLDOWN = 1.2   -- minimum seconds between action button taps
-
--- Side‑to‑side Auto Generator with auto‑TP to next gen
+-- Ultra-fast side‑to‑side Auto Generator
 local autoGen = false
 local genConn = nil
-local repairState = "idle"   -- "idle", "waitingForSkillcheck", "skillcheckActive"
-local currentGen = nil
-local currentPoints = {}
-local currentIndex = 1
+local lastTapTime = 0
+local TAP_COOLDOWN = 2.0   -- minimum seconds between tapping different generators
 
 local function findNewGenerator()
     local char = LocalPlayer.Character
@@ -510,24 +504,14 @@ local function findNewGenerator()
         end
     end
 
-    if bestGen then
-        currentGen = bestGen
-        currentPoints = bestPts
-        currentIndex = 1
-        log("INFO", "New generator: " .. #bestPts .. " points")
-    else
-        currentGen = nil
-        currentPoints = {}
-    end
+    return bestGen, bestPts
 end
 
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    repairState = "idle"
     lastTapTime = 0
-    findNewGenerator()
-    log("INFO", "Auto Generator ON (Safe Side‑to‑Side)")
+    log("INFO", "Auto Generator ON (Ultra-Fast Side‑to‑Side)")
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -542,45 +526,32 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        -- If no current gen or it's completed, pick next
-        if not currentGen or genProgress(currentGen) >= 1 then
-            findNewGenerator()
-            if not currentGen then return end
+        -- Find a generator that needs work
+        local gen, points = findNewGenerator()
+        if not gen then return end
+
+        -- Only tap if we haven't tapped recently (prevents emote error)
+        if (tick() - lastTapTime) >= TAP_COOLDOWN then
+            -- Move to first point and start repair
+            root.CFrame = CFrame.new(points[1].Position + Vector3.new(1.5, 0, 0))
+            task.wait(0.2)
+            tapAction()
+            lastTapTime = tick()
+            task.wait(0.15)   -- tiny delay for repair to initiate
         end
 
-        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-        local check = prompt and prompt:WaitForChild("Check", 10)
-        local skillVisible = check and check.Visible
+        -- Spam success remote on all points rapidly
+        local startSpam = tick()
+        while autoGen and genProgress(gen) < 1 and tick() - startSpam < 5 do
+            for _, pt in pairs(points) do
+                if not autoGen or genProgress(gen) >= 1 then break end
+                pcall(function() genRemote:FireServer("success", 1, gen, pt) end)
+                task.wait(0.04)  -- ~40ms between points → extremely fast
+            end
+        end
 
-        if repairState == "idle" then
-            if not skillVisible and (tick() - lastTapTime) >= TAP_COOLDOWN then
-                if #currentPoints == 0 then return end
-                local point = currentPoints[currentIndex]
-                if not point then return end
-
-                root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
-                task.wait(0.2)
-                tapAction()
-                lastTapTime = tick()
-                repairState = "waitingForSkillcheck"
-                log("INFO", "Repair started at point " .. currentIndex)
-            end
-        elseif repairState == "waitingForSkillcheck" then
-            if skillVisible then
-                repairState = "skillcheckActive"
-                log("INFO", "Skillcheck appeared, sending success...")
-                pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[currentIndex]) end)
-                task.wait(0.2)
-            end
-        elseif repairState == "skillcheckActive" then
-            if not skillVisible then
-                -- repair cycle finished, move to next point (side‑to‑side)
-                if #currentPoints > 1 then
-                    currentIndex = (currentIndex % #currentPoints) + 1
-                end
-                repairState = "idle"
-                log("INFO", "Cycle finished, next point: " .. currentIndex)
-            end
+        if genProgress(gen) >= 1 then
+            log("SUCCESS", "Generator completed!")
         end
     end)
 end
@@ -588,9 +559,6 @@ end
 local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
-    repairState = "idle"
-    currentGen = nil
-    currentPoints = {}
     log("INFO", "Auto Generator OFF")
 end
 
@@ -923,4 +891,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – No emote errors, perfect side‑to‑side")
+log("SUCCESS", "VD Mini loaded – Ultra Fast Gen Spam")
