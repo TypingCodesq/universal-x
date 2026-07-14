@@ -1,10 +1,11 @@
 --[[
-    VIOLENCE DISTRICT - MOBILE UNIFIED SCRIPT v2.3
-    • Modern UI with minimize/close
+    VIOLENCE DISTRICT - MOBILE UNIFIED SCRIPT v3.1
+    • Modern UI (mobile optimized)
     • ESP Players + Generators + Progress + Pallets
-    • Aimbot (Survivor/Killer compatible)
-    • Auto Gene (multi-point, side approach)
-    • Auto Heal + Drop All Pallets (touch action)
+    • Aimbot (Survivor/Killer)
+    • Auto Gene (multi-point with 1s per side)
+    • Auto Heal Team + Self Heal + God Mode
+    • Drop All Pallets (instant, with correct facing)
     • Auto Skillcheck, Fly, Noclip, Speed, Jump
     • Fullbright
 ]]
@@ -22,6 +23,13 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Workspace = game:GetService("Workspace")
 
+-- Mobile detection
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+if not isMobile then
+    local vp = Camera.ViewportSize
+    isMobile = math.min(vp.X, vp.Y) < 600
+end
+
 local Theme = {
     Background = Color3.fromRGB(22, 22, 26),
     Sidebar = Color3.fromRGB(28, 28, 34),
@@ -36,6 +44,12 @@ local Theme = {
 
 local FONT = Enum.Font.GothamBold
 local FONT_BODY = Enum.Font.Gotham
+
+-- UI sizes (mobile friendly)
+local BTN_HEIGHT = isMobile and 36 or 30
+local FONT_SIZE = isMobile and 13 or 12
+local FRAME_W = isMobile and 360 or 320
+local FRAME_H = isMobile and 560 or 520
 
 local function create(class, props)
     local inst = Instance.new(class)
@@ -53,7 +67,7 @@ local ScreenGui = create("ScreenGui", {
 })
 
 local MinimizedIcon = create("ImageButton", {
-    Size = UDim2.new(0, 48, 0, 48),
+    Size = UDim2.new(0, 56, 0, 56),
     Position = UDim2.new(0, 20, 0, 20),
     BackgroundColor3 = Theme.Panel,
     Image = "",
@@ -65,22 +79,22 @@ iconCorner.CornerRadius = UDim.new(1, 0)
 iconCorner.Parent = MinimizedIcon
 local iconStroke = Instance.new("UIStroke")
 iconStroke.Color = Theme.Accent
-iconStroke.Thickness = 1.5
+iconStroke.Thickness = 2
 iconStroke.Parent = MinimizedIcon
 local iconLabel = create("TextLabel", {
     Size = UDim2.new(1, 0, 1, 0),
     BackgroundTransparency = 1,
     Text = "VD",
     Font = FONT,
-    TextSize = 14,
+    TextSize = 18,
     TextColor3 = Theme.Accent,
     Parent = MinimizedIcon,
 })
 
 local MainFrame = create("Frame", {
     Name = "Main",
-    Size = UDim2.new(0, 320, 0, 520),
-    Position = UDim2.new(0.5, -160, 0.5, -260),
+    Size = UDim2.new(0, FRAME_W, 0, FRAME_H),
+    Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2),
     BackgroundColor3 = Theme.Background,
     ClipsDescendants = true,
     Parent = ScreenGui,
@@ -94,7 +108,7 @@ mainStroke.Thickness = 1
 mainStroke.Parent = MainFrame
 
 local TopBar = create("Frame", {
-    Size = UDim2.new(1, 0, 0, 38),
+    Size = UDim2.new(1, 0, 0, 42),
     BackgroundColor3 = Theme.Sidebar,
     Parent = MainFrame,
 })
@@ -112,10 +126,10 @@ create("Frame", {
 create("TextLabel", {
     Text = "VIOLENCE DISTRICT",
     Font = FONT,
-    TextSize = 13,
+    TextSize = isMobile and 14 or 13,
     TextColor3 = Theme.Text,
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 10, 0, 0),
+    Position = UDim2.new(0, 12, 0, 0),
     Size = UDim2.new(1, -100, 1, 0),
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = TopBar,
@@ -124,42 +138,42 @@ create("TextLabel", {
 local MinBtn = create("TextButton", {
     Text = "–",
     Font = FONT,
-    TextSize = 16,
+    TextSize = 20,
     TextColor3 = Theme.SubText,
     BackgroundTransparency = 1,
-    Size = UDim2.new(0, 36, 1, 0),
-    Position = UDim2.new(1, -72, 0, 0),
+    Size = UDim2.new(0, 40, 1, 0),
+    Position = UDim2.new(1, -82, 0, 0),
     Parent = TopBar,
 })
 
 local CloseBtn = create("TextButton", {
     Text = "✕",
     Font = FONT,
-    TextSize = 14,
+    TextSize = 16,
     TextColor3 = Theme.Bad,
     BackgroundTransparency = 1,
-    Size = UDim2.new(0, 36, 1, 0),
-    Position = UDim2.new(1, -36, 0, 0),
+    Size = UDim2.new(0, 40, 1, 0),
+    Position = UDim2.new(1, -42, 0, 0),
     Parent = TopBar,
 })
 
 local Content = create("ScrollingFrame", {
-    Size = UDim2.new(1, -10, 1, -44),
-    Position = UDim2.new(0, 5, 0, 42),
+    Size = UDim2.new(1, -12, 1, -48),
+    Position = UDim2.new(0, 6, 0, 46),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
-    ScrollBarThickness = 2,
+    ScrollBarThickness = 4,
     ScrollBarImageColor3 = Theme.Accent,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     Parent = MainFrame,
 })
 local layout = create("UIListLayout", {
-    Padding = UDim.new(0, 5),
+    Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
     Parent = Content,
 })
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Content.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    Content.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 12)
 end)
 
 MinBtn.MouseButton1Click:Connect(function()
@@ -175,7 +189,7 @@ MinimizedIcon.MouseButton1Click:Connect(function()
     MinimizedIcon.Visible = false
     MainFrame.Visible = true
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 320, 0, 520)}):Play()
+    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Size = UDim2.new(0, FRAME_W, 0, FRAME_H)}):Play()
 end)
 
 local function dragElement(element, target)
@@ -204,7 +218,7 @@ dragElement(MinimizedIcon, MinimizedIcon)
 local order = 0
 local function addSection(text)
     local frame = create("Frame", {
-        Size = UDim2.new(1, -6, 0, 20),
+        Size = UDim2.new(1, -8, 0, 22),
         BackgroundTransparency = 1,
         LayoutOrder = order,
         Parent = Content,
@@ -213,7 +227,7 @@ local function addSection(text)
     create("TextLabel", {
         Text = text,
         Font = FONT,
-        TextSize = 11,
+        TextSize = FONT_SIZE - 1,
         TextColor3 = Theme.Accent,
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 1, 0),
@@ -225,32 +239,32 @@ end
 local function addToggle(text, default, callback)
     local state = default
     local holder = create("Frame", {
-        Size = UDim2.new(1, -6, 0, 30),
+        Size = UDim2.new(1, -8, 0, BTN_HEIGHT),
         BackgroundColor3 = Color3.fromRGB(28, 28, 34),
         LayoutOrder = order,
         Parent = Content,
     })
     order = order + 1
     local hc = Instance.new("UICorner")
-    hc.CornerRadius = UDim.new(0, 6)
+    hc.CornerRadius = UDim.new(0, 8)
     hc.Parent = holder
 
     create("TextLabel", {
         Text = text,
         Font = FONT_BODY,
-        TextSize = 12,
+        TextSize = FONT_SIZE,
         TextColor3 = Theme.Text,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 8, 0, 0),
-        Size = UDim2.new(1, -60, 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -70, 1, 0),
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = holder,
     })
 
     local switch = create("TextButton", {
         Text = "",
-        Size = UDim2.new(0, 38, 0, 18),
-        Position = UDim2.new(1, -46, 0.5, -9),
+        Size = UDim2.new(0, 44, 0, 22),
+        Position = UDim2.new(1, -54, 0.5, -11),
         BackgroundColor3 = state and Theme.Accent or Theme.Stroke,
         Parent = holder,
     })
@@ -259,8 +273,8 @@ local function addToggle(text, default, callback)
     sc.Parent = switch
 
     local knob = create("Frame", {
-        Size = UDim2.new(0, 14, 0, 14),
-        Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7),
+        Size = UDim2.new(0, 18, 0, 18),
+        Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
         BackgroundColor3 = Color3.new(1, 1, 1),
         Parent = switch,
     })
@@ -271,80 +285,10 @@ local function addToggle(text, default, callback)
     switch.MouseButton1Click:Connect(function()
         state = not state
         local goalCol = state and Theme.Accent or Theme.Stroke
-        local goalPos = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        local goalPos = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
         TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = goalCol}):Play()
         TweenService:Create(knob, TweenInfo.new(0.2), {Position = goalPos}):Play()
         callback(state)
-    end)
-end
-
-local function addSlider(text, min, max, default, callback)
-    local holder = create("Frame", {
-        Size = UDim2.new(1, -6, 0, 38),
-        BackgroundColor3 = Color3.fromRGB(28, 28, 34),
-        LayoutOrder = order,
-        Parent = Content,
-    })
-    order = order + 1
-    local hc = Instance.new("UICorner")
-    hc.CornerRadius = UDim.new(0, 6)
-    hc.Parent = holder
-
-    local label = create("TextLabel", {
-        Text = text .. ": " .. tostring(default),
-        Font = FONT_BODY,
-        TextSize = 11,
-        TextColor3 = Theme.Text,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 8, 0, 2),
-        Size = UDim2.new(1, -16, 0, 14),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = holder,
-    })
-
-    local bar = create("Frame", {
-        Size = UDim2.new(1, -16, 0, 5),
-        Position = UDim2.new(0, 8, 1, -12),
-        BackgroundColor3 = Color3.fromRGB(50, 50, 55),
-        Parent = holder,
-    })
-    local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(1, 0)
-    bc.Parent = bar
-
-    local fill = create("Frame", {
-        Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
-        BackgroundColor3 = Theme.Accent,
-        Parent = bar,
-    })
-    local fc = Instance.new("UICorner")
-    fc.CornerRadius = UDim.new(1, 0)
-    fc.Parent = fill
-
-    local draggingSlider = false
-    local function updateFromX(x)
-        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-        local val = math.floor(min + (max - min) * rel)
-        fill.Size = UDim2.new(rel, 0, 1, 0)
-        label.Text = text .. ": " .. tostring(val)
-        callback(val)
-    end
-
-    bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = true
-            updateFromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            updateFromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = false
-        end
     end)
 end
 
@@ -352,16 +296,16 @@ local function addButton(text, callback)
     local btn = create("TextButton", {
         Text = text,
         Font = FONT,
-        TextSize = 12,
+        TextSize = FONT_SIZE,
         TextColor3 = Theme.Text,
         BackgroundColor3 = Theme.Accent,
-        Size = UDim2.new(1, -6, 0, 30),
+        Size = UDim2.new(1, -8, 0, BTN_HEIGHT),
         LayoutOrder = order,
         Parent = Content,
     })
     order = order + 1
     local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(0, 6)
+    bc.CornerRadius = UDim.new(0, 8)
     bc.Parent = btn
     btn.MouseButton1Click:Connect(callback)
     return btn
@@ -489,6 +433,19 @@ local function getPallets()
         end
     end)
     return pallets
+end
+
+local function getPalletPosition(pallet)
+    if pallet:IsA("Model") then
+        local primary = pallet.PrimaryPart
+        if primary then return primary.Position end
+        for _, child in pairs(pallet:GetChildren()) do
+            if child:IsA("BasePart") then return child.Position end
+        end
+    elseif pallet:IsA("BasePart") then
+        return pallet.Position
+    end
+    return nil
 end
 
 local function getGeneratorProgress(gen)
@@ -651,7 +608,135 @@ local function tapActionButton()
     end
 end
 
--- ==================== AUTO GENERATOR (MOBILE) ====================
+-- ==================== GOD MODE ====================
+local godModeEnabled = false
+
+local function godModeLoop()
+    while godModeEnabled do
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.MaxHealth = 1e9
+                hum.Health = 1e9
+            end
+        end
+        task.wait(0.1)
+    end
+end
+
+local function startGodMode()
+    godModeEnabled = true
+    task.spawn(godModeLoop)
+end
+
+local function stopGodMode()
+    godModeEnabled = false
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.MaxHealth = 100
+            hum.Health = 100
+        end
+    end
+end
+
+-- ==================== SELF HEAL ====================
+local selfHealEnabled = false
+local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
+
+local function selfHealLoop()
+    while selfHealEnabled do
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health < 90 then
+                healRemote:FireServer("success", 1, char)
+            end
+        end
+        task.wait(0.5)
+    end
+end
+
+local function startSelfHeal()
+    selfHealEnabled = true
+    task.spawn(selfHealLoop)
+end
+
+local function stopSelfHeal()
+    selfHealEnabled = false
+end
+
+-- ==================== AUTO HEAL TEAM ====================
+local autoHealEnabled = false
+
+local function autoHealLoop()
+    while autoHealEnabled do
+        local char = LocalPlayer.Character
+        if not char then task.wait(0.5) continue end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then task.wait(0.5) continue end
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if not autoHealEnabled then break end
+            if plr ~= LocalPlayer and plr.Team == LocalPlayer.Team and plr.Character then
+                local targetHum = plr.Character:FindFirstChild("Humanoid")
+                if targetHum and targetHum.Health <= 50 then
+                    local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+                    if targetRoot then
+                        root.CFrame = CFrame.new(targetRoot.Position + Vector3.new(2, 0, 0))
+                        task.wait(0.3)
+                        healRemote:FireServer("success", 1, plr.Character)
+                        task.wait(0.5)
+                    end
+                end
+            end
+        end
+        task.wait(1)
+    end
+end
+
+local function startAutoHeal()
+    if autoHealEnabled then return end
+    autoHealEnabled = true
+    task.spawn(autoHealLoop)
+end
+
+local function stopAutoHeal()
+    autoHealEnabled = false
+end
+
+-- ==================== DROP ALL PALLETS (MEJORADO) ====================
+local function dropAllPallets()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local pallets = getPallets()
+    task.spawn(function()
+        for _, pallet in pairs(pallets) do
+            if pallet and pallet.Parent then
+                local pos = getPalletPosition(pallet)
+                if pos then
+                    -- Pararse al lado y mirar hacia la paleta
+                    local lookPos = pos + Vector3.new(3, 0, 0)
+                    root.CFrame = CFrame.lookAt(pos + Vector3.new(2, 0, 0), pos)
+                    task.wait(0.1)
+                    -- Tocar el botón varias veces para asegurar la tirada
+                    for i = 1, 3 do
+                        tapActionButton()
+                        task.wait(0.05)
+                    end
+                    task.wait(0.2)
+                end
+            end
+        end
+    end)
+end
+
+-- ==================== AUTO GENERATOR (1s por lado) ====================
 local autoGeneEnabled = false
 local autoGeneConnection = nil
 
@@ -698,7 +783,6 @@ local function startRepairAtPoint(point)
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
-    -- Teletransporte al lado del punto (no encima)
     root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
     task.wait(0.1)
     tapActionButton()
@@ -713,21 +797,21 @@ local function autoGeneLoop()
             continue
         end
         
-        -- Secuencia rápida en varios puntos
+        -- Secuencia: punto1 ~1s, punto2 ~1s, punto3 (si existe) ~1s, luego punto1 y quedarse
         startRepairAtPoint(points[1])
-        task.wait(0.12)
+        task.wait(0.8)
         startRepairAtPoint(points[2])
-        task.wait(0.12)
+        task.wait(0.8)
         if points[3] then
             startRepairAtPoint(points[3])
-            task.wait(0.12)
+            task.wait(0.8)
         end
-        
-        -- Quedarse en el primer punto hasta completar
         startRepairAtPoint(points[1])
-        local startTime = tick()
-        while autoGeneEnabled and getGeneratorProgress(gen) < 1 and tick() - startTime < 5 do
-            task.wait(0.2)
+        task.wait(0.2)
+        
+        -- Ahora se queda reparando en el primer punto hasta terminar
+        while autoGeneEnabled and getGeneratorProgress(gen) < 1 do
+            task.wait(0.5)
         end
         task.wait(0.5)
     end
@@ -747,99 +831,17 @@ local function stopAutoGene()
     end
 end
 
--- ==================== AUTO HEAL (MOBILE) ====================
-local autoHealEnabled = false
-local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
-
-local function autoHealLoop()
-    while autoHealEnabled do
-        local char = LocalPlayer.Character
-        if not char then task.wait(0.5) continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then task.wait(0.5) continue end
-        
-        for _, plr in pairs(Players:GetPlayers()) do
-            if not autoHealEnabled then break end
-            if plr ~= LocalPlayer and plr.Team == LocalPlayer.Team and plr.Character then
-                local targetHum = plr.Character:FindFirstChild("Humanoid")
-                if targetHum and targetHum.Health <= 50 then
-                    local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart")
-                    if targetRoot then
-                        root.CFrame = CFrame.new(targetRoot.Position + Vector3.new(2, 0, 0))
-                        task.wait(0.3)
-                        healRemote:FireServer("success", 1, plr.Character)
-                        task.wait(0.5)
-                    end
-                end
-            end
-        end
-        task.wait(1)
-    end
-end
-
-local function startAutoHeal()
-    if autoHealEnabled then return end
-    autoHealEnabled = true
-    task.spawn(autoHealLoop)
-end
-
-local function stopAutoHeal()
-    autoHealEnabled = false
-end
-
--- ==================== DROP ALL PALLETS (MOBILE ACTION) ====================
-local function getPalletPosition(pallet)
-    if pallet:IsA("Model") then
-        local primary = pallet.PrimaryPart
-        if primary then return primary.Position end
-        for _, child in pairs(pallet:GetChildren()) do
-            if child:IsA("BasePart") then return child.Position end
-        end
-    elseif pallet:IsA("BasePart") then
-        return pallet.Position
-    end
-    return nil
-end
-
-local function dropAllPallets()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    local pallets = getPallets()
-    
-    task.spawn(function()
-        for _, pallet in pairs(pallets) do
-            if pallet and pallet.Parent then
-                local pos = getPalletPosition(pallet)
-                if pos then
-                    -- Pararse al lado
-                    root.CFrame = CFrame.new(pos + Vector3.new(2, 0, 0))
-                    task.wait(0.15)
-                    tapActionButton()
-                    task.wait(0.25)
-                end
-            end
-        end
-    end)
-end
-
 -- ==================== FULLBRIGHT ====================
-Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-Lighting.Brightness = 2
-Lighting.ClockTime = 14
-Lighting.GlobalShadows = false
-Lighting.FogEnd = 9e9
-RunService.Heartbeat:Connect(function()
+local function fullbrightUpdate()
     Lighting.Ambient = Color3.fromRGB(255, 255, 255)
     Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     Lighting.Brightness = 2
     Lighting.ClockTime = 14
     Lighting.GlobalShadows = false
     Lighting.FogEnd = 9e9
-end)
+end
+fullbrightUpdate()
+RunService.Heartbeat:Connect(fullbrightUpdate)
 
 -- ==================== FLY ====================
 local flyEnabled = false
@@ -868,14 +870,12 @@ local function startFly()
         if not flyEnabled then return end
         bodyGyro.CFrame = Camera.CFrame
         local vel = Vector3.new(0, 0, 0)
-        
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then vel += Camera.CFrame.LookVector * flySpeed end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then vel += Camera.CFrame.LookVector * -flySpeed end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then vel += Camera.CFrame.RightVector * -flySpeed end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then vel += Camera.CFrame.RightVector * flySpeed end
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then vel += Vector3.new(0, flySpeed, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then vel += Vector3.new(0, -flySpeed, 0) end
-        
         bodyVelocity.Velocity = vel
         hum.PlatformStand = true
     end)
@@ -966,10 +966,14 @@ addSection("AIMBOT")
 addToggle("Aimbot", false, function(v) if v then startAimbot() else stopAimbot() end end)
 
 addSection("AUTO ACTIONS")
-addToggle("Auto Generator (Multi-Point)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
-addToggle("Auto Heal", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
+addToggle("Auto Generator (Multi 1s)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
+addToggle("Auto Heal Team", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
+addToggle("Auto Heal Self", false, function(v) if v then startSelfHeal() else stopSelfHeal() end end)
 addToggle("Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
 addButton("Drop All Pallets", dropAllPallets)
+
+addSection("GOD MODE")
+addToggle("God Mode (No Death)", false, function(v) if v then startGodMode() else stopGodMode() end end)
 
 addSection("MOVEMENT")
 addToggle("Fly (WASD)", false, function(v) flyEnabled = v; if v then startFly() else stopFly() end end)
