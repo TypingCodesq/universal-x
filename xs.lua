@@ -471,11 +471,10 @@ local function tapAction()
     end
 end
 
--- Auto Generator with one-tap-per-cycle perfect skillcheck
+-- Auto Generator with direct RemoteEvent completion – no more angle guessing
 local autoGen = false
 local genConn = nil
-local repairState = "idle"       -- idle, waitingForSkillcheck, skillcheckActive
-local skillCheckTapped = false
+local repairState = "idle"   -- "idle", "waitingForSkillcheck", "skillcheckActive"
 
 local function getClosestGenPoint()
     local char = LocalPlayer.Character
@@ -502,28 +501,11 @@ local function getClosestGenPoint()
     return bestGen, bestPoint
 end
 
-local function isInPerfectZone()
-    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if not prompt then return false end
-    local check = prompt:WaitForChild("Check", 10)
-    if not check or not check.Visible then return false end
-    local line = check:WaitForChild("Line")
-    local goal = check:WaitForChild("Goal")
-    if not line or not goal then return false end
-    
-    local lr = line.Rotation % 360
-    local gr = goal.Rotation % 360
-    local ss = (gr + 101) % 360
-    local se = (gr + 115) % 360
-    return (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se)
-end
-
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
     repairState = "idle"
-    skillCheckTapped = false
-    log("INFO", "Auto Generator ON (Single‑Tap Perfect)")
+    log("INFO", "Auto Generator ON (Direct Remote – Always Perfect)")
     
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -555,31 +537,27 @@ local function startAutoGen()
                 task.wait(0.3)
                 tapAction()
                 repairState = "waitingForSkillcheck"
-                log("INFO", "Generator repair started")
+                log("INFO", "Repair started")
             end
         elseif repairState == "waitingForSkillcheck" then
             if skillVisible then
                 repairState = "skillcheckActive"
-                skillCheckTapped = false
-                log("INFO", "Skillcheck appeared")
+                log("INFO", "Skillcheck appeared, sending success...")
+                -- immediately complete the skillcheck via remote
+                pcall(function() genRemote:FireServer("success", 1, gen, point) end)
+                task.wait(0.3)
             end
         elseif repairState == "skillcheckActive" then
-            if skillVisible then
-                if not skillCheckTapped and isInPerfectZone() then
-                    tapAction()
-                    skillCheckTapped = true
-                    log("SUCCESS", "Perfect skillcheck!")
-                end
-            else
-                -- skillcheck disappeared, check if generator complete
+            if not skillVisible then
+                -- skillcheck UI disappeared, repair cycle complete
                 if genProgress(gen) >= 1 then
                     repairState = "idle"
-                    log("SUCCESS", "Generator completed!")
+                    log("SUCCESS", "Generator finished!")
                 else
-                    -- next skillcheck cycle
-                    repairState = "idle"
+                    repairState = "idle"   -- go for next cycle
                 end
             end
+            -- If still visible, do nothing (the remote already sent)
         end
     end)
 end
@@ -591,7 +569,7 @@ local function stopAutoGen()
     log("INFO", "Auto Generator OFF")
 end
 
--- (rest of functions unchanged)
+-- (rest of functions unchanged: god, self heal, team heal, esp, aimbot, fly, noclip)
 
 local god = false
 local function godLoop()
@@ -920,4 +898,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Single tap, perfect skillcheck")
+log("SUCCESS", "VD Mini loaded – Perfect Generator (remote)")
