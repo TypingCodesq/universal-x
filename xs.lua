@@ -1,4 +1,4 @@
--- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.1
+-- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.2
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -15,51 +15,17 @@ _G.RheyzHub = {
         AutoHeal = false,
         DropAllPallets = false,
         UnlockPallets = false,
-        NoSlowdown = false,
-        FastVault = false,
-        BypassExit = false
+        NoSlowdown = false
     },
     Killer = {
-        NoCooldown = false,
-        InstantHit = false,
         SpeedMulti = 2.5,
-        NoStun = false,
-        InstantGrab = false
+        InstantHit = false,
+        NoStun = false
     },
     Misc = { WalkSpeed = 18, Noclip = false, GodMode = false }
 }
 
-local function GetAllPallets()
-    local pallets = {}
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v.Name:lower():find("pallet") then
-            table.insert(pallets, v)
-        end
-    end
-    return pallets
-end
-
-local function DropAllPalletsWithTP()
-    local pallets = GetAllPallets()
-    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    for _, pallet in pairs(pallets) do
-        local pRoot = pallet:FindFirstChild("HumanoidRootPart") or pallet.PrimaryPart
-        if pRoot then
-            root.CFrame = pRoot.CFrame * CFrame.new(4, 8, 4)
-            wait(0.15)
-            pRoot.Velocity = Vector3.new(0, -1600, 0)
-            for _, part in pairs(pallet:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Velocity = Vector3.new(0, -1400, 0)
-                end
-            end
-        end
-        wait(0.1)
-    end
-end
-
+-- ==================== AUTO GENERATOR (Mejorado) ====================
 local function AutoGenerator()
     if not _G.RheyzHub.Survivor.AutoGenerator then return end
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -67,15 +33,60 @@ local function AutoGenerator()
 
     for _, gen in pairs(Workspace:GetDescendants()) do
         if gen.Name == "Generator" then
-            local point = gen:FindFirstChild("GeneratorPoint1") or gen:FindFirstChild("GeneratorPoint2") or gen.PrimaryPart
-            if point and (root.Position - point.Position).Magnitude < 35 then
-                root.CFrame = point.CFrame * CFrame.new(0, 6, 0)
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                wait(0.7)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                break
+            for i = 1, 4 do
+                local point = gen:FindFirstChild("GeneratorPoint"..i)
+                if point and (root.Position - point.Position).Magnitude < 40 then
+                    root.CFrame = point.CFrame * CFrame.new(0, -2, 0)  -- Debajo del gen
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                    wait(0.4)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                    wait(0.6)
+                end
             end
         end
+    end
+end
+
+-- ==================== AUTO HEAL ====================
+local function AutoHeal()
+    if not _G.RheyzHub.Survivor.AutoHeal then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum and hum.Health < hum.MaxHealth then
+        hum.Health = hum.MaxHealth
+    end
+end
+
+-- ==================== GOD MODE ====================
+local function GodMode()
+    if not _G.RheyzHub.Misc.GodMode then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        hum.MaxHealth = math.huge
+        hum.Health = math.huge
+    end
+end
+
+-- ==================== DROP PALLETS ====================
+local function DropAllPalletsWithTP()
+    local pallets = {}
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v.Name:lower():find("pallet") then table.insert(pallets, v) end
+    end
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _, p in pairs(pallets) do
+        local pRoot = p:FindFirstChild("HumanoidRootPart") or p.PrimaryPart
+        if pRoot then
+            root.CFrame = pRoot.CFrame * CFrame.new(3, 8, 3)
+            wait(0.12)
+            pRoot.Velocity = Vector3.new(0, -1600, 0)
+        end
+        wait(0.1)
     end
 end
 
@@ -88,7 +99,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, 380, 0, 580)
 Main.Position = UDim2.new(0.5, -190, 0.15, 0)
-Main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+Main.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
 Main.Active = true
 Main.Draggable = true
 Main.Parent = ScreenGui
@@ -96,7 +107,7 @@ Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
 
 local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 55)
-TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(22, 22, 38)
 TopBar.Parent = Main
 Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 16)
 
@@ -104,7 +115,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "VIOLENCE DISTRICT HUB"
-Title.TextColor3 = Color3.fromRGB(100, 170, 255)
+Title.TextColor3 = Color3.fromRGB(110, 180, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 21
 Title.Parent = TopBar
@@ -129,18 +140,18 @@ local function AddBtn(text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 55)
     btn.Position = UDim2.new(0.05, 0, 0, y)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+    btn.BackgroundColor3 = Color3.fromRGB(32, 32, 50)
     btn.Text = text
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 16
+    btn.TextSize = 15
     btn.Parent = Main
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     btn.MouseButton1Click:Connect(callback)
     y = y + 65
 end
 
-AddBtn("DROP ALL PALLETS (TP + Throw)", DropAllPalletsWithTP)
+AddBtn("DROP ALL PALLETS", DropAllPalletsWithTP)
 AddBtn("Unlock All Pallets", function() _G.RheyzHub.Survivor.UnlockPallets = not _G.RheyzHub.Survivor.UnlockPallets end)
 AddBtn("Auto Generator", function() _G.RheyzHub.Survivor.AutoGenerator = not _G.RheyzHub.Survivor.AutoGenerator end)
 AddBtn("Auto Skillcheck", function() _G.RheyzHub.Survivor.AutoSkillCheck = not _G.RheyzHub.Survivor.AutoSkillCheck end)
@@ -148,8 +159,7 @@ AddBtn("Auto Parry", function() _G.RheyzHub.Survivor.AutoParry = not _G.RheyzHub
 AddBtn("Auto Heal", function() _G.RheyzHub.Survivor.AutoHeal = not _G.RheyzHub.Survivor.AutoHeal end)
 AddBtn("No Slowdown", function() _G.RheyzHub.Survivor.NoSlowdown = not _G.RheyzHub.Survivor.NoSlowdown end)
 AddBtn("Killer Speed x2.5", function() _G.RheyzHub.Killer.SpeedMulti = 2.5 end)
-AddBtn("Instant Hit (Killer)", function() _G.RheyzHub.Killer.InstantHit = not _G.RheyzHub.Killer.InstantHit end)
-AddBtn("No Stun (Killer)", function() _G.RheyzHub.Killer.NoStun = not _G.RheyzHub.Killer.NoStun end)
+AddBtn("Instant Hit", function() _G.RheyzHub.Killer.InstantHit = not _G.RheyzHub.Killer.InstantHit end)
 AddBtn("Noclip", function() _G.RheyzHub.Misc.Noclip = not _G.RheyzHub.Misc.Noclip end)
 AddBtn("God Mode", function() _G.RheyzHub.Misc.GodMode = not _G.RheyzHub.Misc.GodMode end)
 AddBtn("WalkSpeed 30", function() _G.RheyzHub.Misc.WalkSpeed = 30 end)
@@ -169,30 +179,16 @@ RunService.Heartbeat:Connect(function()
         DropAllPalletsWithTP()
     end
 
-    if _G.RheyzHub.Survivor.AutoGenerator then
-        AutoGenerator()
-    end
-
-    if _G.RheyzHub.Survivor.UnlockPallets then
-        for _, p in pairs(GetAllPallets()) do
-            for _, d in pairs(p:GetDescendants()) do
-                if d:IsA("BoolValue") and (d.Name:lower():find("lock") or d.Name:lower():find("used")) then
-                    d.Value = false
-                end
-            end
-        end
-    end
+    if _G.RheyzHub.Survivor.AutoGenerator then AutoGenerator() end
+    if _G.RheyzHub.Survivor.AutoHeal then AutoHeal() end
+    if _G.RheyzHub.Misc.GodMode then GodMode() end
 
     if _G.RheyzHub.Misc.Noclip then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
-
-    if _G.RheyzHub.Misc.GodMode and hum then
-        hum.Health = hum.MaxHealth
-    end
 end)
 
-print("✅ VD Hub v4.1 Cargado")
-print("Arrastra la ventana | Prueba los botones")
+print("✅ VD Hub v4.2 Cargado")
+print("Arrastra la ventana")
