@@ -452,7 +452,6 @@ local function waitUntilFree()
     return false
 end
 
--- Action button tapper (same as TriggerMobileButton)
 local function tapAction()
     local current = LocalPlayer:WaitForChild("PlayerGui")
     local path = "Survivor-mob.Controls.action.check"
@@ -472,10 +471,9 @@ local function tapAction()
     end
 end
 
--- Auto Generator with integrated perfect skillcheck (angle difference)
+-- Auto Generator with continuous perfect skillcheck
 local autoGen = false
 local genConn = nil
-local skillCheckConnection = nil
 
 local function getClosestGenPoint()
     local char = LocalPlayer.Character
@@ -502,45 +500,30 @@ local function getClosestGenPoint()
     return bestGen, bestPoint
 end
 
-local function onSkillCheckVisible()
+local function isInPerfectZone()
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if not prompt then return end
+    if not prompt then return false end
     local check = prompt:WaitForChild("Check", 10)
-    if not check then return end
+    if not check or not check.Visible then return false end
     local line = check:WaitForChild("Line")
     local goal = check:WaitForChild("Goal")
+    if not line or not goal then return false end
     
-    if check.Visible then
-        local lr = line.Rotation % 360
-        local gr = goal.Rotation % 360
-        -- Calculate angular difference, considering wrap-around
-        local diff = math.abs(lr - gr) % 360
-        if diff > 180 then diff = 360 - diff end
-        -- Perfect zone: within 15 degrees of the goal
-        if diff <= 15 then
-            tapAction()
-        end
-    end
+    local lr = line.Rotation % 360
+    local gr = goal.Rotation % 360
+    local ss = (gr + 101) % 360
+    local se = (gr + 115) % 360
+    return (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se)
 end
 
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    log("INFO", "Auto Generator ON (Perfect Skillcheck)")
-    
-    -- Connect skillcheck monitor
-    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if prompt then
-        local check = prompt:WaitForChild("Check", 10)
-        if check then
-            skillCheckConnection = check:GetPropertyChangedSignal("Visible"):Connect(onSkillCheckVisible)
-        end
-    end
+    log("INFO", "Auto Generator ON (Continuous Perfect Skillcheck)")
     
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
             if genConn then genConn:Disconnect() end
-            if skillCheckConnection then skillCheckConnection:Disconnect() end
             return
         end
         
@@ -554,27 +537,32 @@ local function startAutoGen()
         local gen, point = getClosestGenPoint()
         if not gen or not point then return end
         
-        -- If already repairing (skillcheck visible), skip TP to avoid interruption
-        local currentCheck = prompt and prompt:FindFirstChild("Check")
-        if currentCheck and currentCheck.Visible then
-            return
+        -- If skillcheck UI is visible, handle the skillcheck
+        local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
+        local check = prompt and prompt:WaitForChild("Check", 10)
+        if check and check.Visible then
+            if isInPerfectZone() then
+                tapAction()
+                task.wait(0.3) -- wait for the skillcheck to disappear and progress
+            end
+            return -- don't TP while repairing
         end
         
+        -- If not repairing, TP to point and start
         root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
         task.wait(0.3)
-        tapAction()
-        task.wait(1)  -- give time for skillcheck to appear and be handled
+        tapAction() -- start the repair
+        task.wait(0.5) -- wait for skillcheck UI to appear
     end)
 end
 
 local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
-    if skillCheckConnection then skillCheckConnection:Disconnect() skillCheckConnection = nil end
     log("INFO", "Auto Generator OFF")
 end
 
--- (rest of functions unchanged: god, self heal, team heal, esp, aimbot, fly, noclip)
+-- (rest of functions unchanged)
 
 local god = false
 local function godLoop()
@@ -903,4 +891,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Perfect skillcheck every time")
+log("SUCCESS", "VD Mini loaded – Perfect Skillcheck Guaranteed")
