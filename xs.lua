@@ -1,9 +1,11 @@
--- VIOLENCE DISTRICT ULTIMATE - DELTA MOBILE
+-- VIOLENCE DISTRICT HUB - DELTA MOBILE (Completo)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+
 local player = Players.LocalPlayer
 
 _G.RheyzHub = {
@@ -13,59 +15,107 @@ _G.RheyzHub = {
         AutoParry = false,
         AutoHeal = false,
         DropAllPallets = false,
-        UnlockPallets = false,
-        NoSlowdown = false,
-        FastVault = false,
-        BypassExit = false
+        UnlockPallets = false
     },
-    Killer = {
-        NoCooldown = false,
-        InstantHit = false,
-        SpeedMulti = 2.0
+    Misc = { WalkSpeed = 18, Fly = false, Noclip = false, GodMode = false }
+}
+
+-- ==================== TU CÓDIGO (ESP + SkillCheck) ====================
+local Config = {
+    Players = {
+        Killer = {Color = Color3.fromRGB(255, 93, 108)},
+        Survivor = {Color = Color3.fromRGB(64, 224, 255)}
     },
-    Aimbot = {
-        Enabled = false,
-        FOV = 250,
-        Smoothness = 8
-    },
-    ESP = {
-        Enabled = true,
-        Players = true,
-        Generators = true,
-        Pallets = true
-    },
-    Misc = {
-        WalkSpeed = 18,
-        Fly = false,
-        Noclip = false,
-        GodMode = false
+    Objects = {
+        Generator = {Color = Color3.fromRGB(150, 0, 200)},
+        Gate = {Color = Color3.fromRGB(255, 255, 255)},
+        Pallet = {Color = Color3.fromRGB(74, 255, 181)},
+        Window = {Color = Color3.fromRGB(74, 255, 181)},
+        Hook = {Color = Color3.fromRGB(132, 255, 169)}
     }
 }
 
--- ==================== PALLETS FIX ====================
-local function GetRootPart(obj)
+local MaskNames = { ["Richard"] = "Rooster", ["Tony"] = "Tiger", ["Brandon"] = "Panther", ["Cobra"] = "Cobra", ["Richter"] = "Rat", ["Rabbit"] = "Rabbit", ["Alex"] = "Chainsaw" }
+local MaskColors = { ["Richard"] = Color3.fromRGB(255, 0, 0), ["Tony"] = Color3.fromRGB(255, 255, 0), ["Brandon"] = Color3.fromRGB(160, 32, 240), ["Cobra"] = Color3.fromRGB(0, 255, 0), ["Richter"] = Color3.fromRGB(0, 0, 0), ["Rabbit"] = Color3.fromRGB(255, 105, 180), ["Alex"] = Color3.fromRGB(255, 255, 255) }
+
+local IndicatorGui = nil
+
+local function SetupGui()
+    if player.PlayerGui:FindFirstChild("ChasedInds") then player.PlayerGui.ChasedInds:Destroy() end
+    IndicatorGui = Instance.new("ScreenGui")
+    IndicatorGui.Name = "ChasedInds"
+    IndicatorGui.IgnoreGuiInset = true
+    IndicatorGui.DisplayOrder = 999
+    IndicatorGui.Parent = player.PlayerGui
+end
+
+local function GetGameValue(obj, name)
     if not obj then return nil end
-    if obj:FindFirstChild("HumanoidRootPart") then return obj.HumanoidRootPart end
-    if obj.PrimaryPart then return obj.PrimaryPart end
-    for _, part in pairs(obj:GetDescendants()) do
-        if part:IsA("BasePart") and part.Size.Magnitude > 3 then
-            return part
-        end
-    end
-    for _, part in pairs(obj:GetDescendants()) do
-        if part:IsA("BasePart") then return part end
+    local attr = obj:GetAttribute(name)
+    if attr \~= nil then return attr end
+    local child = obj:FindFirstChild(name)
+    if child then
+        local success, val = pcall(function() return child.Value end)
+        if success then return val end
     end
     return nil
 end
 
-local function GetAllPallets()
-    local pallets = {}
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v.Name:lower():find("pallet") then
-            table.insert(pallets, v)
-        end
+local function ApplyHighlight(object, color)
+    local h = object:FindFirstChild("H") or Instance.new("Highlight")
+    h.Name = "H"
+    h.Adornee = object
+    h.FillColor = color
+    h.OutlineColor = color
+    h.FillTransparency = 0.7
+    h.OutlineTransparency = 0.2
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    h.Parent = object
+end
+
+local function CreateBillboardTag(text, color, size, textSize)
+    local billboard = Instance.new("BillboardGui")
+    billboard.AlwaysOnTop = true
+    billboard.Size = size or UDim2.new(0, 120, 0, 30)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextStrokeTransparency = 0
+    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = textSize or 12
+    label.Parent = billboard
+    return billboard
+end
+
+local function updatePlayerNametag(p)
+    if not p.Character then return end
+    local root = p.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local isKiller = (p.Team and p.Team.Name:lower():find("killer")) \~= nil
+    local color = isKiller and Config.Players.Killer.Color or Config.Players.Survivor.Color
+
+    ApplyHighlight(p.Character, color)
+
+    local billboard = root:FindFirstChild("Nametag")
+    if not billboard then
+        billboard = CreateBillboardTag(p.Name, color)
+        billboard.Adornee = root
+        billboard.StudsOffset = Vector3.new(0, 4, 0)
+        billboard.Parent = root
+        billboard.Name = "Nametag"
     end
-    return pallets
+end
+
+local function GetAllPallets()
+    local list = {}
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v.Name:lower():find("pallet") then table.insert(list, v) end
+    end
+    return list
 end
 
 local function DropAllPalletsWithTP()
@@ -74,54 +124,24 @@ local function DropAllPalletsWithTP()
     if not root then return end
 
     for _, pallet in pairs(pallets) do
-        local pRoot = GetRootPart(pallet)
+        local pRoot = pallet:FindFirstChild("HumanoidRootPart") or pallet.PrimaryPart or pallet:FindFirstChildWhichIsA("BasePart")
         if pRoot then
-            root.CFrame = pRoot.CFrame * CFrame.new(3, 6, 3)
-            wait(0.12)
+            root.CFrame = pRoot.CFrame * CFrame.new(3, 7, 0)
+            wait(0.1)
             pRoot.Velocity = Vector3.new(0, -1400, 0)
-            for _, part in pairs(pallet:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Velocity = Vector3.new(0, -1200, 0)
-                end
-            end
         end
-        wait(0.1)
+        wait(0.08)
     end
-    print("✅ Drop All Pallets completado")
 end
 
--- ==================== AUTO GENERATOR ====================
-local function AutoGenerator()
-    local conn = RunService.Heartbeat:Connect(function()
-        if not _G.RheyzHub.Survivor.AutoGenerator then conn:Disconnect() return end
-        local char = player.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-
-        for _, gen in pairs(Workspace:GetDescendants()) do
-            if gen.Name == "Generator" then
-                local gRoot = GetRootPart(gen)
-                if gRoot then
-                    local side = math.random(1,2) == 1 and 4 or -4
-                    root.CFrame = gRoot.CFrame * CFrame.new(side, 5, 0)
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                    wait(0.4)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                end
-            end
-        end
-    end)
-end
-
--- ==================== UI ====================
+-- UI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "VDHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 340, 0, 520)
+Main.Size = UDim2.new(0, 340, 0, 480)
 Main.Position = UDim2.new(0.5, -170, 0.2, 0)
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 30)
 Main.Active = true
@@ -165,18 +185,18 @@ local function AddBtn(text, callback)
     btn.TextSize = 15
     btn.Parent = Main
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    
     btn.MouseButton1Click:Connect(callback)
     y = y + 62
 end
 
 AddBtn("AUTO GENERATOR", function()
     _G.RheyzHub.Survivor.AutoGenerator = not _G.RheyzHub.Survivor.AutoGenerator
-    if _G.RheyzHub.Survivor.AutoGenerator then AutoGenerator() end
 end)
 
-AddBtn("DROP ALL PALLETS (TP + Throw)", DropAllPalletsWithTP)
+AddBtn("DROP ALL PALLETS", DropAllPalletsWithTP)
 
-AddBtn("Unlock All Pallets", function()
+AddBtn("Unlock Pallets", function()
     _G.RheyzHub.Survivor.UnlockPallets = not _G.RheyzHub.Survivor.UnlockPallets
 end)
 
@@ -184,23 +204,28 @@ AddBtn("WalkSpeed 30", function()
     _G.RheyzHub.Misc.WalkSpeed = 30
 end)
 
-AddBtn("Toggle Fly", function()
-    _G.RheyzHub.Misc.Fly = not _G.RheyzHub.Misc.Fly
-end)
-
-AddBtn("Toggle Noclip", function()
-    _G.RheyzHub.Misc.Noclip = not _G.RheyzHub.Misc.Noclip
-end)
-
-AddBtn("God Mode", function()
-    _G.RheyzHub.Misc.GodMode = not _G.RheyzHub.Misc.GodMode
-end)
-
+-- Loop principal
 RunService.Heartbeat:Connect(function()
     local char = player.Character
-    if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid.WalkSpeed = _G.RheyzHub.Misc.WalkSpeed
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then hum.WalkSpeed = _G.RheyzHub.Misc.WalkSpeed end
+
+    if _G.RheyzHub.Survivor.DropAllPallets then
+        _G.RheyzHub.Survivor.DropAllPallets = false
+        DropAllPalletsWithTP()
+    end
+
+    if _G.RheyzHub.Survivor.UnlockPallets then
+        for _, p in pairs(GetAllPallets()) do
+            for _, d in pairs(p:GetDescendants()) do
+                if d:IsA("BoolValue") and (d.Name:lower():find("lock") or d.Name:lower():find("used")) then
+                    d.Value = false
+                end
+            end
+        end
     end
 end)
 
-print("✅ Hub completo cargado")
+SetupGui()
+print("✅ Hub cargado correctamente")
