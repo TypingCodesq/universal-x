@@ -1,12 +1,12 @@
 --[[
-    VIOLENCE DISTRICT - UNIFIED SCRIPT v2.2
+    VIOLENCE DISTRICT - MOBILE UNIFIED SCRIPT v2.3
     • Modern UI with minimize/close
     • ESP Players + Generators + Progress + Pallets
     • Aimbot (Survivor/Killer compatible)
-    • Auto Gene (multi-point speed glitch)
-    • Auto Heal + Drop All Pallets (fixed)
+    • Auto Gene (multi-point, side approach)
+    • Auto Heal + Drop All Pallets (touch action)
     • Auto Skillcheck, Fly, Noclip, Speed, Jump
-    • Fullbright, Next Killer Display
+    • Fullbright
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -624,7 +624,34 @@ end)
 local function startAimbot() aimbotEnabled = true end
 local function stopAimbot() aimbotEnabled = false end
 
--- ==================== AUTO GENERATOR (MULTI-POINT) ====================
+-- ==================== MOBILE ACTION BUTTON ====================
+local TouchID = 8822
+local ActionPath = "Survivor-mob.Controls.action.check"
+
+local function GetActionTarget()
+    local current = LocalPlayer:WaitForChild("PlayerGui")
+    for segment in string.gmatch(ActionPath, "[^%.]+") do
+        current = current and current:FindFirstChild(segment)
+    end
+    return current
+end
+
+local function tapActionButton()
+    local b = GetActionTarget()
+    if b and b:IsA("GuiObject") and b.Visible then
+        local pos = b.AbsolutePosition
+        local size = b.AbsoluteSize
+        local inset = GuiService:GetGuiInset()
+        local cx, cy = pos.X + size.X/2 + inset.X, pos.Y + size.Y/2 + inset.Y
+        pcall(function()
+            VirtualInputManager:SendTouchEvent(TouchID, 0, cx, cy)
+            task.wait(0.02)
+            VirtualInputManager:SendTouchEvent(TouchID, 2, cx, cy)
+        end)
+    end
+end
+
+-- ==================== AUTO GENERATOR (MOBILE) ====================
 local autoGeneEnabled = false
 local autoGeneConnection = nil
 
@@ -646,7 +673,7 @@ local function getClosestGeneratorWithPoints()
                 local pt = gen:FindFirstChild("GeneratorPoint" .. i)
                 if pt then table.insert(points, pt) end
             end
-            if #points >= 2 then  -- need at least 2 points to switch
+            if #points >= 2 then
                 local closestDist = math.huge
                 for _, pt in pairs(points) do
                     local d = (root.Position - pt.Position).Magnitude
@@ -661,9 +688,7 @@ local function getClosestGeneratorWithPoints()
         end
     end
     
-    if bestGen then
-        return bestGen, bestPoints
-    end
+    if bestGen then return bestGen, bestPoints end
     return nil
 end
 
@@ -673,11 +698,11 @@ local function startRepairAtPoint(point)
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
-    root.CFrame = CFrame.new(point.Position + Vector3.new(0, 3, 0))
-    task.wait(0.2)
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    -- Teletransporte al lado del punto (no encima)
+    root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
+    task.wait(0.1)
+    tapActionButton()
     task.wait(0.05)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
 end
 
 local function autoGeneLoop()
@@ -688,27 +713,21 @@ local function autoGeneLoop()
             continue
         end
         
-        -- Reparar en el primer punto
+        -- Secuencia rápida en varios puntos
         startRepairAtPoint(points[1])
-        task.wait(0.15)
-        
-        -- Cambiar al segundo punto (simular otro superviviente)
+        task.wait(0.12)
         startRepairAtPoint(points[2])
-        task.wait(0.15)
-        
-        -- Si hay un tercer punto, también
+        task.wait(0.12)
         if points[3] then
             startRepairAtPoint(points[3])
-            task.wait(0.15)
+            task.wait(0.12)
         end
         
-        -- Finalmente volver al primer punto y quedarse reparando
+        -- Quedarse en el primer punto hasta completar
         startRepairAtPoint(points[1])
-        
-        -- Esperar hasta que termine o se cancele
         local startTime = tick()
         while autoGeneEnabled and getGeneratorProgress(gen) < 1 and tick() - startTime < 5 do
-            task.wait(0.1)
+            task.wait(0.2)
         end
         task.wait(0.5)
     end
@@ -728,7 +747,7 @@ local function stopAutoGene()
     end
 end
 
--- ==================== AUTO HEAL ====================
+-- ==================== AUTO HEAL (MOBILE) ====================
 local autoHealEnabled = false
 local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
 
@@ -768,7 +787,7 @@ local function stopAutoHeal()
     autoHealEnabled = false
 end
 
--- ==================== DROP ALL PALLETS (FIXED) ====================
+-- ==================== DROP ALL PALLETS (MOBILE ACTION) ====================
 local function getPalletPosition(pallet)
     if pallet:IsA("Model") then
         local primary = pallet.PrimaryPart
@@ -795,14 +814,11 @@ local function dropAllPallets()
             if pallet and pallet.Parent then
                 local pos = getPalletPosition(pallet)
                 if pos then
-                    -- Posicionarse al lado de la pallet (desde los lados, no arriba)
+                    -- Pararse al lado
                     root.CFrame = CFrame.new(pos + Vector3.new(2, 0, 0))
-                    task.wait(0.2)
-                    -- Usar tecla de acción (E) para tirar la pallet
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                    task.wait(0.1)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                    task.wait(0.3)
+                    task.wait(0.15)
+                    tapActionButton()
+                    task.wait(0.25)
                 end
             end
         end
@@ -810,17 +826,20 @@ local function dropAllPallets()
 end
 
 -- ==================== FULLBRIGHT ====================
-local function enableFullbright()
+Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+Lighting.Brightness = 2
+Lighting.ClockTime = 14
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 9e9
+RunService.Heartbeat:Connect(function()
     Lighting.Ambient = Color3.fromRGB(255, 255, 255)
     Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     Lighting.Brightness = 2
     Lighting.ClockTime = 14
     Lighting.GlobalShadows = false
     Lighting.FogEnd = 9e9
-end
-
-enableFullbright()
-RunService.Heartbeat:Connect(enableFullbright)
+end)
 
 -- ==================== FLY ====================
 local flyEnabled = false
@@ -902,29 +921,6 @@ end
 -- ==================== AUTO SKILLCHECK ====================
 local autoSkillcheckEnabled = false
 local autoSkillConnection = nil
-local TouchID = 8822
-local ActionPath = "Survivor-mob.Controls.action.check"
-
-local function GetActionTarget()
-    local current = LocalPlayer:WaitForChild("PlayerGui")
-    for segment in string.gmatch(ActionPath, "[^%.]+") do
-        current = current and current:FindFirstChild(segment)
-    end
-    return current
-end
-
-local function TriggerMobileButton()
-    local b = GetActionTarget()
-    if b and b:IsA("GuiObject") then
-        local p, s, i = b.AbsolutePosition, b.AbsoluteSize, GuiService:GetGuiInset()
-        local cx, cy = p.X + (s.X / 2) + i.X, p.Y + (s.Y / 2) + i.Y
-        pcall(function()
-            VirtualInputManager:SendTouchEvent(TouchID, 0, cx, cy)
-            task.wait(0.01)
-            VirtualInputManager:SendTouchEvent(TouchID, 2, cx, cy)
-        end)
-    end
-end
 
 local function startAutoSkillcheck()
     if autoSkillcheckEnabled then return end
@@ -946,7 +942,7 @@ local function startAutoSkillcheck()
             local se = (gr + 115) % 360
             
             if (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se) then
-                TriggerMobileButton()
+                tapActionButton()
             end
         end
     end)
@@ -1018,7 +1014,6 @@ for _, plr in pairs(Players:GetPlayers()) do
     end
 end
 
--- ==================== ESP UPDATE LOOP ====================
 RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espPlayer then updatePlayerESPColors() end
     if _G.FeatureState.espGenerator then updateGeneratorESP() end
