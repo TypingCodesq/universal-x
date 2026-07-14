@@ -54,7 +54,7 @@ local FONT_BODY = Enum.Font.Gotham
 local BTN_HEIGHT = isMobile and 36 or 30
 local FONT_SIZE = isMobile and 13 or 12
 local FRAME_W = isMobile and 360 or 320
-local FRAME_H = isMobile and 520 or 460
+local FRAME_H = isMobile and 560 or 500
 
 local function create(class, props)
     local inst = Instance.new(class)
@@ -413,28 +413,34 @@ local function addButton(page, text, callback)
     return btn
 end
 
-local function dragElement(element, target)
-    local dragging, start, startPos
-    element.InputBegan:Connect(function(input)
+local function makeDraggable(handle, target)
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    handle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            start = input.Position
+            dragStart = input.Position
             startPos = target.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
             end)
         end
     end)
+
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - start
+            local delta = input.Position - dragStart
             target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
 
-dragElement(TopBar, MainFrame)
-dragElement(MinimizedIcon, MinimizedIcon)
+makeDraggable(TopBar, MainFrame)
+makeDraggable(MinimizedIcon, MinimizedIcon)
 
 _G.FeatureState = _G.FeatureState or {}
 _G.RoleData = _G.RoleData or {TeamName = "SURVIVORS"}
@@ -520,18 +526,12 @@ local autoSkillConnection = nil
 local function startAutoSkillcheck()
     if autoSkillcheckEnabled then return end
     autoSkillcheckEnabled = true
-    log("INFO", "Starting Auto Skillcheck (direct remote)")
+    log("INFO", "Starting Auto Skillcheck")
 
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if not prompt then
-        log("ERROR", "SkillCheckPromptGui not found")
-        return
-    end
+    if not prompt then log("ERROR", "SkillCheckPromptGui not found") return end
     local check = prompt:WaitForChild("Check", 10)
-    if not check then
-        log("ERROR", "Check not found")
-        return
-    end
+    if not check then log("ERROR", "Check not found") return end
 
     autoSkillConnection = check:GetPropertyChangedSignal("Visible"):Connect(function()
         if not autoSkillcheckEnabled then return end
@@ -556,24 +556,19 @@ local function startAutoSkillcheck()
                     end
                     if nearGen and genModel and genPoint then
                         genRemote:FireServer("success", 1, genModel, genPoint)
-                        log("SUCCESS", "Generator skillcheck fired via remote")
                     else
                         healRemote:FireServer("success", 1, char)
-                        log("SUCCESS", "Heal skillcheck fired via remote")
                     end
                 end
             end
         end
     end)
-    log("SUCCESS", "Auto Skillcheck enabled (direct method)")
+    log("SUCCESS", "Auto Skillcheck enabled")
 end
 
 local function stopAutoSkillcheck()
     autoSkillcheckEnabled = false
-    if autoSkillConnection then
-        autoSkillConnection:Disconnect()
-        autoSkillConnection = nil
-    end
+    if autoSkillConnection then autoSkillConnection:Disconnect(); autoSkillConnection = nil end
     log("INFO", "Auto Skillcheck disabled")
 end
 
@@ -606,7 +601,6 @@ local function getClosestIncompleteGenerator()
             end
         end
     end
-
     if bestGen then return bestGen, bestPoints end
     return nil
 end
@@ -614,32 +608,27 @@ end
 local function startAutoGenerator()
     if autoGeneEnabled then return end
     autoGeneEnabled = true
-    log("INFO", "Starting Auto Generator (direct remote)")
+    log("INFO", "Starting Auto Generator")
 
     autoGeneConnection = RunService.Heartbeat:Connect(function()
         if not autoGeneEnabled then
             if autoGeneConnection then autoGeneConnection:Disconnect() end
             return
         end
-
         local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-
         local gen, points = getClosestIncompleteGenerator()
         if not gen then return end
-
         for _, point in pairs(points) do
             if not autoGeneEnabled then break end
             if getGeneratorProgress(gen) >= 1 then break end
-
             root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
             task.wait(0.1)
             genRemote:FireServer("success", 1, gen, point)
             task.wait(0.6)
         end
-
         if getGeneratorProgress(gen) < 1 and points[1] then
             root.CFrame = CFrame.new(points[1].Position + Vector3.new(1.5, 0, 0))
             task.wait(0.1)
@@ -650,10 +639,7 @@ end
 
 local function stopAutoGenerator()
     autoGeneEnabled = false
-    if autoGeneConnection then
-        autoGeneConnection:Disconnect()
-        autoGeneConnection = nil
-    end
+    if autoGeneConnection then autoGeneConnection:Disconnect(); autoGeneConnection = nil end
     log("INFO", "Auto Generator disabled")
 end
 
@@ -691,12 +677,10 @@ local function startAutoExitGates()
     exitGateConnection = RunService.Heartbeat:Connect(function()
         if not autoExitGatesEnabled then return end
         if not allGensComplete() then return end
-
         local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-
         for _, gate in pairs(getGates()) do
             local gateSwitch = gate:FindFirstChild("Switch") or gate:FindFirstChild("Lever")
             if gateSwitch then
@@ -726,20 +710,15 @@ local function startKillerJuke()
         if not killerJukeEnabled then return end
         local nearestKiller, dist = getNearestKiller()
         if not nearestKiller or dist > 15 then return end
-
         local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-
         local killerRoot = nearestKiller:FindFirstChild("HumanoidRootPart")
         if not killerRoot then return end
-
-        local directionToKiller = (killerRoot.Position - root.Position).Unit
         local rightVector = Camera.CFrame.RightVector
         local jukeDirection = math.random(0,1) == 0 and rightVector or -rightVector
         local jukePosition = root.Position + jukeDirection * 10
-
         root.CFrame = CFrame.new(jukePosition)
         task.wait(0.5)
     end)
@@ -820,7 +799,6 @@ local function autoHealLoop()
         if not char then task.wait(0.5) continue end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then task.wait(0.5) continue end
-
         for _, plr in pairs(Players:GetPlayers()) do
             if not autoHealEnabled then break end
             if plr ~= LocalPlayer and plr.Team == LocalPlayer.Team and plr.Character then
@@ -984,7 +962,6 @@ local function updateGeneratorESP()
         local progress = getGeneratorProgress(gen)
         local percent = math.floor(progress * 100)
         local color = Color3.fromRGB(150, 0, 200):Lerp(Color3.fromRGB(0, 255, 0), progress)
-
         createGeneratorESP(gen)
         local data = espGenerators[gen]
         if data then
@@ -1016,7 +993,6 @@ local function isValidAimTarget(plr)
     local role = getRole()
     if role == "SPECTATOR" then return false end
     local targetRole = plr.Team and string.upper(plr.Team.Name or "") or ""
-
     if role == "SURVIVORS" then
         return targetRole == "KILLER"
     elseif role == "KILLER" then
@@ -1033,7 +1009,6 @@ end
 local function findAimTarget()
     local closest = nil
     local closestDist = 200
-
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and isValidAimTarget(plr) and plr.Character then
             local targetPart = plr.Character:FindFirstChild("UpperTorso") or
@@ -1159,14 +1134,14 @@ fullbrightUpdate()
 RunService.Heartbeat:Connect(fullbrightUpdate)
 
 addSection(SurvivorPage, "GENERATOR")
-addToggle(SurvivorPage, "Auto Generator (Multi)", false, function(v) if v then startAutoGenerator() else stopAutoGenerator() end end)
+addToggle(SurvivorPage, "Auto Generator", false, function(v) if v then startAutoGenerator() else stopAutoGenerator() end end)
 addToggle(SurvivorPage, "Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
 
 addSection(SurvivorPage, "HEALING")
 addToggle(SurvivorPage, "Auto Heal Team", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
 addToggle(SurvivorPage, "Auto Heal Self", false, function(v) if v then startSelfHeal() else stopSelfHeal() end end)
 
-addSection(SurvivorPage, "REVOLUTIONARY")
+addSection(SurvivorPage, "UTILITY")
 addToggle(SurvivorPage, "Instant Wiggle Free", false, function(v) if v then startInstantWiggle() else stopInstantWiggle() end end)
 addToggle(SurvivorPage, "Auto Exit Gates", false, function(v) if v then startAutoExitGates() else stopAutoExitGates() end end)
 addToggle(SurvivorPage, "Killer Juke", false, function(v) if v then startKillerJuke() else stopKillerJuke() end end)
