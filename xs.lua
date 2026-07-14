@@ -471,31 +471,15 @@ local function tapAction()
     end
 end
 
--- Perfect Skillcheck Monitor
-local function isInPerfectZone()
-    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if not prompt then return false end
-    local check = prompt:WaitForChild("Check", 10)
-    if not check or not check.Visible then return false end
-    local line = check:WaitForChild("Line")
-    local goal = check:WaitForChild("Goal")
-    if not line or not goal then return false end
-    
-    local lr = line.Rotation % 360
-    local gr = goal.Rotation % 360
-    local ss = (gr + 101) % 360
-    local se = (gr + 115) % 360
-    return (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se)
-end
-
--- Simple, safe Auto Generator: one tap, then perfect skillcheck
+-- Auto Generator with Remote Skillcheck & Side‑to‑Side
 local autoGen = false
 local genConn = nil
-local skillCheckConn = nil
 local currentGen = nil
-local currentPoint = nil
+local currentPoints = {}
+local currentIndex = 1
+local phase = "idle" -- idle, startRepair, waitingSkillcheck, completeCycle, stay
 local lastTapTime = 0
-local TAP_COOLDOWN = 2.0
+local TAP_COOLDOWN = 1.0
 
 local function findNewGenerator()
     local char = LocalPlayer.Character
@@ -503,49 +487,41 @@ local function findNewGenerator()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local bestGen, bestPoint, bestDist = nil, nil, math.huge
+    local bestGen, bestDist, bestPts = nil, math.huge, {}
     for _, g in pairs(getGenerators()) do
         if genProgress(g) < 1 then
+            local pts = {}
             for i = 1, 4 do
                 local p = g:FindFirstChild("GeneratorPoint" .. i)
-                if p then
+                if p then table.insert(pts, p) end
+            end
+            if #pts >= 2 then  -- prefer generators with multiple points
+                for _, p in pairs(pts) do
                     local d = (root.Position - p.Position).Magnitude
                     if d < bestDist then
                         bestDist = d
                         bestGen = g
-                        bestPoint = p
+                        bestPts = pts
                     end
                 end
             end
         end
     end
-    return bestGen, bestPoint
+    return bestGen, bestPts
 end
 
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
+    phase = "idle"
+    currentGen = nil
+    currentPoints = {}
     lastTapTime = 0
-    log("INFO", "Auto Generator ON (Safe One‑Tap + Perfect Skillcheck)")
-
-    -- Connect skillcheck perfect tapper
-    local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
-    if prompt then
-        local check = prompt:WaitForChild("Check", 10)
-        if check then
-            skillCheckConn = check:GetPropertyChangedSignal("Visible"):Connect(function()
-                if not autoGen then return end
-                if check.Visible and isInPerfectZone() then
-                    tapAction()
-                end
-            end)
-        end
-    end
+    log("INFO", "Auto Generator ON (Side‑to‑Side + Remote Perfect)")
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
             if genConn then genConn:Disconnect() end
-            if skillCheckConn then skillCheckConn:Disconnect() end
             return
         end
 
@@ -556,26 +532,56 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        -- Find new generator if current is done or not set
+        -- Find new generator if needed
         if not currentGen or genProgress(currentGen) >= 1 then
-            local gen, point = findNewGenerator()
-            if not gen then return end
-            currentGen = gen
-            currentPoint = point
+            local gen, pts = findNewGenerator()
+            if gen then
+                currentGen = gen
+                currentPoints = pts
+                currentIndex = 1
+                phase = "idle"
+                log("INFO", "New generator with " .. #pts .. " points")
+            else
+                return
+            end
         end
 
-        -- If skillcheck is visible, do nothing (the monitor handles it)
         local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
         local check = prompt and prompt:WaitForChild("Check", 10)
-        if check and check.Visible then return end
+        local skillVisible = check and check.Visible
 
-        -- Only tap if cooldown passed
-        if (tick() - lastTapTime) >= TAP_COOLDOWN then
-            root.CFrame = CFrame.new(currentPoint.Position + Vector3.new(1.5, 0, 0))
-            task.wait(0.2)
-            tapAction()
-            lastTapTime = tick()
-            log("INFO", "Tapped to start repair")
+        if phase == "idle" then
+            if not skillVisible and (tick() - lastTapTime) >= TAP_COOLDOWN then
+                root.CFrame = CFrame.new(currentPoints[currentIndex].Position + Vector3.new(1.5, 0, 0))
+                task.wait(0.2)
+                tapAction()
+                lastTapTime = tick()
+                phase = "waitingSkillcheck"
+                log("INFO", "Tapped point " .. currentIndex)
+            end
+        elseif phase == "waitingSkillcheck" then
+            if skillVisible then
+                pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[currentIndex]) end)
+                phase = "completeCycle"
+                log("SUCCESS", "Remote sent for point " .. currentIndex)
+            end
+        elseif phase == "completeCycle" then
+            if not skillVisible then
+                -- Move to next point for side‑to‑side effect
+                if #currentPoints > 1 and currentIndex < #currentPoints then
+                    currentIndex = currentIndex + 1
+                    phase = "idle"
+                else
+                    -- Stay on last point (point 1 after cycling)
+                    currentIndex = 1
+                    phase = "stay"
+                    log("INFO", "Staying on point 1")
+                end
+            end
+        elseif phase == "stay" then
+            if skillVisible then
+                pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[1]) end)
+            end
         end
     end)
 end
@@ -583,9 +589,8 @@ end
 local function stopAutoGen()
     autoGen = false
     if genConn then genConn:Disconnect() genConn = nil end
-    if skillCheckConn then skillCheckConn:Disconnect() skillCheckConn = nil end
     currentGen = nil
-    currentPoint = nil
+    currentPoints = {}
     log("INFO", "Auto Generator OFF")
 end
 
@@ -918,4 +923,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Safe One‑Tap Gen")
+log("SUCCESS", "VD Mini loaded – Side‑to‑Side Remote Perfect")
