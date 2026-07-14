@@ -443,33 +443,8 @@ local function getRole()
     return string.upper(_G.RoleData.TeamName or "")
 end
 
-local TouchID = 8822
-local ActionPath = "Survivor-mob.Controls.action.check"
-
-local function GetActionTarget()
-    local current = LocalPlayer:WaitForChild("PlayerGui")
-    for segment in string.gmatch(ActionPath, "[^%.]+") do
-        current = current and current:FindFirstChild(segment)
-    end
-    return current
-end
-
-local function tapActionButton()
-    local b = GetActionTarget()
-    if not b or not b:IsA("GuiObject") then
-        log("ERROR", "Action button not found")
-        return
-    end
-    local pos = b.AbsolutePosition
-    local size = b.AbsoluteSize
-    local inset = GuiService:GetGuiInset()
-    local cx, cy = pos.X + size.X/2 + inset.X, pos.Y + size.Y/2 + inset.Y
-    pcall(function()
-        VirtualInputManager:SendTouchEvent(TouchID, 0, cx, cy)
-        task.wait(0.02)
-        VirtualInputManager:SendTouchEvent(TouchID, 2, cx, cy)
-    end)
-end
+local genRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Generator"):WaitForChild("SkillCheckResultEvent")
+local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
 
 local function getGenerators()
     local gens = {}
@@ -545,7 +520,7 @@ local autoSkillConnection = nil
 local function startAutoSkillcheck()
     if autoSkillcheckEnabled then return end
     autoSkillcheckEnabled = true
-    log("INFO", "Starting Auto Skillcheck")
+    log("INFO", "Starting Auto Skillcheck (direct remote)")
     
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
     if not prompt then
@@ -557,24 +532,40 @@ local function startAutoSkillcheck()
         log("ERROR", "Check not found")
         return
     end
-    local line = check:WaitForChild("Line")
-    local goal = check:WaitForChild("Goal")
     
     autoSkillConnection = check:GetPropertyChangedSignal("Visible"):Connect(function()
         if not autoSkillcheckEnabled then return end
         if check.Visible then
-            local lr = line.Rotation % 360
-            local gr = goal.Rotation % 360
-            local ss = (gr + 101) % 360
-            local se = (gr + 115) % 360
-            
-            if (ss > se and (lr >= ss or lr <= se)) or (lr >= ss and lr <= se) then
-                tapActionButton()
-                log("SUCCESS", "Skillcheck perfect")
+            local char = LocalPlayer.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local nearGen = false
+                    local genModel, genPoint
+                    for _, gen in pairs(getGenerators()) do
+                        for i = 1, 4 do
+                            local pt = gen:FindFirstChild("GeneratorPoint" .. i)
+                            if pt and (root.Position - pt.Position).Magnitude < 10 then
+                                nearGen = true
+                                genModel = gen
+                                genPoint = pt
+                                break
+                            end
+                        end
+                        if nearGen then break end
+                    end
+                    if nearGen and genModel and genPoint then
+                        genRemote:FireServer("success", 1, genModel, genPoint)
+                        log("SUCCESS", "Generator skillcheck fired via remote")
+                    else
+                        healRemote:FireServer("success", 1, char)
+                        log("SUCCESS", "Heal skillcheck fired via remote")
+                    end
+                end
             end
         end
     end)
-    log("SUCCESS", "Auto Skillcheck enabled")
+    log("SUCCESS", "Auto Skillcheck enabled (direct method)")
 end
 
 local function stopAutoSkillcheck()
@@ -603,7 +594,7 @@ local function getClosestGeneratorWithPoints()
                 local pt = gen:FindFirstChild("GeneratorPoint" .. i)
                 if pt then table.insert(pts, pt) end
             end
-            if #pts >= 2 then
+            if #pts >= 1 then
                 local minD = math.huge
                 for _, pt in pairs(pts) do
                     local d = (root.Position - pt.Position).Magnitude
@@ -622,7 +613,7 @@ local function getClosestGeneratorWithPoints()
     return nil
 end
 
-local function startRepairAtPoint(point)
+local function repairAtPoint(point, gen)
     local char = LocalPlayer.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
@@ -630,8 +621,7 @@ local function startRepairAtPoint(point)
     
     root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
     task.wait(0.1)
-    tapActionButton()
-    task.wait(0.05)
+    genRemote:FireServer("success", 1, gen, point)
 end
 
 local function autoGeneLoop()
@@ -642,21 +632,23 @@ local function autoGeneLoop()
             continue
         end
         
-        log("INFO", "Starting generator: " .. tostring(gen))
-        startRepairAtPoint(pts[1])
+        log("INFO", "Starting generator via remote: " .. tostring(gen))
+        repairAtPoint(pts[1], gen)
         task.wait(0.8)
-        startRepairAtPoint(pts[2])
-        task.wait(0.8)
-        if pts[3] then
-            startRepairAtPoint(pts[3])
+        if pts[2] then
+            repairAtPoint(pts[2], gen)
             task.wait(0.8)
         end
-        startRepairAtPoint(pts[1])
+        if pts[3] then
+            repairAtPoint(pts[3], gen)
+            task.wait(0.8)
+        end
+        repairAtPoint(pts[1], gen)
         
         while autoGeneEnabled and getGeneratorProgress(gen) < 1 do
             task.wait(0.5)
         end
-        log("SUCCESS", "Generator completed")
+        log("SUCCESS", "Generator completed via remote")
         task.wait(0.5)
     end
 end
@@ -664,7 +656,7 @@ end
 local function startAutoGene()
     if autoGeneEnabled then return end
     autoGeneEnabled = true
-    log("INFO", "Starting Auto Generator")
+    log("INFO", "Starting Auto Generator (remote method)")
     autoGeneConnection = task.spawn(autoGeneLoop)
 end
 
@@ -690,10 +682,7 @@ local function startInstantWiggle()
         if not char then return end
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum and (hum.Sit or hum.PlatformStand) then
-            local moveDir = hum.MoveDirection
-            if moveDir.Magnitude > 0 then
-                tapActionButton()
-            end
+            healRemote:FireServer("success", 1, char)
         end
     end)
 end
@@ -725,12 +714,10 @@ local function startAutoExitGates()
             if gateSwitch then
                 root.CFrame = CFrame.new(gateSwitch.Position + Vector3.new(0, 2, 0))
                 task.wait(0.2)
-                tapActionButton()
-                task.wait(0.5)
             end
         end
         autoExitGatesEnabled = false
-        log("SUCCESS", "Exit gates opened")
+        log("SUCCESS", "Teleported to exit gates")
     end)
 end
 
@@ -812,7 +799,6 @@ local function stopGodMode()
 end
 
 local selfHealEnabled = false
-local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
 
 local function selfHealLoop()
     while selfHealEnabled do
