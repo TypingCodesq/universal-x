@@ -1,6 +1,7 @@
--- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.6 (FIX FINAL)
+-- VIOLENCE DISTRICT HUB - DELTA MOBILE v4.7 (PALLET FIX)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Workspace = game:GetService("Workspace")
 
@@ -20,23 +21,19 @@ _G.RheyzHub = {
     Misc = { WalkSpeed = 18, Noclip = false, GodMode = false }
 }
 
--- ==================== PALLETS (FIX) ====================
-local function GetAllPallets()
+-- ==================== DROP PALLETS (FIX TOTAL) ====================
+local function DropAllPalletsWithTP()
     local pallets = {}
     for _, v in pairs(Workspace:GetDescendants()) do
         if v.Name:lower():find("pallet") then
             table.insert(pallets, v)
         end
     end
-    return pallets
-end
-
-local function DropAllPalletsWithTP()
-    local pallets = GetAllPallets()
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
     for _, pallet in pairs(pallets) do
+        -- Mejor detección de root
         local pRoot = pallet:FindFirstChild("HumanoidRootPart") 
                    or pallet.PrimaryPart 
                    or pallet:FindFirstChildWhichIsA("BasePart")
@@ -45,6 +42,8 @@ local function DropAllPalletsWithTP()
             root.CFrame = pRoot.CFrame * CFrame.new(4, 10, 4)
             wait(0.18)
             pRoot.Velocity = Vector3.new(0, -2200, 0)
+            pRoot.AssemblyLinearVelocity = Vector3.new(0, -2200, 0)
+            
             for _, part in pairs(pallet:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.Velocity = Vector3.new(0, -2000, 0)
@@ -53,9 +52,10 @@ local function DropAllPalletsWithTP()
         end
         wait(0.12)
     end
+    print("✅ Drop completado")
 end
 
--- ==================== AUTO GENERATOR FULL ====================
+-- ==================== AUTO GENERATOR ====================
 local function AutoGenerator()
     if not _G.RheyzHub.Survivor.AutoGenerator then return end
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -74,17 +74,6 @@ local function AutoGenerator()
                 end
             end
         end
-    end
-end
-
--- ==================== AUTO HEAL + ANTI GRAB ====================
-local function AutoHeal()
-    if not _G.RheyzHub.Survivor.AutoHeal then return end
-    local char = player.Character
-    if not char then return end
-    local hum = char:FindFirstChild("Humanoid")
-    if hum then
-        hum.Health = hum.MaxHealth
     end
 end
 
@@ -151,7 +140,7 @@ end
 
 AddBtn("DROP ALL PALLETS", DropAllPalletsWithTP)
 AddBtn("Unlock All Pallets", function() _G.RheyzHub.Survivor.UnlockPallets = not _G.RheyzHub.Survivor.UnlockPallets end)
-AddBtn("Auto Generator (Full)", function() _G.RheyzHub.Survivor.AutoGenerator = not _G.RheyzHub.Survivor.AutoGenerator end)
+AddBtn("Auto Generator", function() _G.RheyzHub.Survivor.AutoGenerator = not _G.RheyzHub.Survivor.AutoGenerator end)
 AddBtn("Auto Skillcheck", function() _G.RheyzHub.Survivor.AutoSkillCheck = not _G.RheyzHub.Survivor.AutoSkillCheck end)
 AddBtn("Auto Parry", function() _G.RheyzHub.Survivor.AutoParry = not _G.RheyzHub.Survivor.AutoParry end)
 AddBtn("Auto Heal", function() _G.RheyzHub.Survivor.AutoHeal = not _G.RheyzHub.Survivor.AutoHeal end)
@@ -192,4 +181,4 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("✅ VD Hub v4.6 Cargado - GUI Moderna")
+print("✅ VD Hub v4.7 Cargado")
