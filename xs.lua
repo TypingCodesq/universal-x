@@ -484,17 +484,17 @@ local function getGenerators()
     return gens
 end
 
-local function getPallets()
-    local pallets = {}
+local function getGates()
+    local gates = {}
     pcall(function()
         local map = Workspace:FindFirstChild("Map")
         if map then
             for _, v in pairs(map:GetDescendants()) do
-                if v.Name == "Pallet" or v.Name == "Palletwrong" then table.insert(pallets, v) end
+                if v.Name == "Gate" then table.insert(gates, v) end
             end
         end
     end)
-    return pallets
+    return gates
 end
 
 local function getGeneratorProgress(gen)
@@ -508,17 +508,35 @@ local function getGeneratorProgress(gen)
     return math.clamp(progress, 0, 1)
 end
 
-local function getPalletPosition(pallet)
-    if pallet:IsA("Model") then
-        local prim = pallet.PrimaryPart
-        if prim then return prim.Position end
-        for _, c in pairs(pallet:GetChildren()) do
-            if c:IsA("BasePart") then return c.Position end
-        end
-    elseif pallet:IsA("BasePart") then
-        return pallet.Position
+local function allGensComplete()
+    for _, gen in pairs(getGenerators()) do
+        if getGeneratorProgress(gen) < 1 then return false end
     end
-    return nil
+    return true
+end
+
+local function getNearestKiller()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local nearest, nearestDist = nil, math.huge
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Team and string.upper(plr.Team.Name) == "KILLER" then
+            local plrChar = plr.Character
+            if plrChar then
+                local plrRoot = plrChar:FindFirstChild("HumanoidRootPart")
+                if plrRoot then
+                    local dist = (root.Position - plrRoot.Position).Magnitude
+                    if dist < nearestDist then
+                        nearestDist = dist
+                        nearest = plrChar
+                    end
+                end
+            end
+        end
+    end
+    return nearest, nearestDist
 end
 
 local autoSkillcheckEnabled = false
@@ -659,40 +677,103 @@ local function stopAutoGene()
     log("INFO", "Auto Generator disabled")
 end
 
-local function dropAllPallets()
-    local char = LocalPlayer.Character
-    if not char then
-        log("ERROR", "No character to drop pallets")
-        return
-    end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then
-        log("ERROR", "No HumanoidRootPart")
-        return
-    end
-    
-    local pallets = getPallets()
-    log("INFO", "Dropping " .. #pallets .. " pallets")
-    
-    task.spawn(function()
-        local dropped = 0
-        for _, pallet in pairs(pallets) do
-            if pallet and pallet.Parent then
-                local pos = getPalletPosition(pallet)
-                if pos then
-                    root.CFrame = CFrame.new(pos + Vector3.new(2, 0, 0))
-                    task.wait(0.1)
-                    for i = 1, 3 do
-                        tapActionButton()
-                        task.wait(0.05)
-                    end
-                    dropped = dropped + 1
-                    task.wait(0.2)
-                end
+local instantWiggleEnabled = false
+local wiggleConnection = nil
+
+local function startInstantWiggle()
+    if instantWiggleEnabled then return end
+    instantWiggleEnabled = true
+    log("INFO", "Instant Wiggle Free enabled")
+    wiggleConnection = RunService.Heartbeat:Connect(function()
+        if not instantWiggleEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and (hum.Sit or hum.PlatformStand) then
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                tapActionButton()
             end
         end
-        log("SUCCESS", "Dropped " .. dropped .. " pallets")
     end)
+end
+
+local function stopInstantWiggle()
+    instantWiggleEnabled = false
+    if wiggleConnection then wiggleConnection:Disconnect(); wiggleConnection = nil end
+    log("INFO", "Instant Wiggle Free disabled")
+end
+
+local autoExitGatesEnabled = false
+local exitGateConnection = nil
+
+local function startAutoExitGates()
+    if autoExitGatesEnabled then return end
+    autoExitGatesEnabled = true
+    log("INFO", "Auto Exit Gates enabled")
+    exitGateConnection = RunService.Heartbeat:Connect(function()
+        if not autoExitGatesEnabled then return end
+        if not allGensComplete() then return end
+        
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        for _, gate in pairs(getGates()) do
+            local gateSwitch = gate:FindFirstChild("Switch") or gate:FindFirstChild("Lever")
+            if gateSwitch then
+                root.CFrame = CFrame.new(gateSwitch.Position + Vector3.new(0, 2, 0))
+                task.wait(0.2)
+                tapActionButton()
+                task.wait(0.5)
+            end
+        end
+        autoExitGatesEnabled = false
+        log("SUCCESS", "Exit gates opened")
+    end)
+end
+
+local function stopAutoExitGates()
+    autoExitGatesEnabled = false
+    if exitGateConnection then exitGateConnection:Disconnect(); exitGateConnection = nil end
+    log("INFO", "Auto Exit Gates disabled")
+end
+
+local killerJukeEnabled = false
+local jukeConnection = nil
+
+local function startKillerJuke()
+    if killerJukeEnabled then return end
+    killerJukeEnabled = true
+    log("INFO", "Killer Juke enabled")
+    jukeConnection = RunService.Heartbeat:Connect(function()
+        if not killerJukeEnabled then return end
+        local nearestKiller, dist = getNearestKiller()
+        if not nearestKiller or dist > 15 then return end
+        
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        local killerRoot = nearestKiller:FindFirstChild("HumanoidRootPart")
+        if not killerRoot then return end
+        
+        local directionToKiller = (killerRoot.Position - root.Position).Unit
+        local rightVector = Camera.CFrame.RightVector
+        local jukeDirection = math.random(0,1) == 0 and rightVector or -rightVector
+        local jukePosition = root.Position + jukeDirection * 10
+        
+        root.CFrame = CFrame.new(jukePosition)
+        task.wait(0.5)
+    end)
+end
+
+local function stopKillerJuke()
+    killerJukeEnabled = false
+    if jukeConnection then jukeConnection:Disconnect(); jukeConnection = nil end
+    log("INFO", "Killer Juke disabled")
 end
 
 local godModeEnabled = false
@@ -1106,11 +1187,15 @@ RunService.Heartbeat:Connect(fullbrightUpdate)
 addSection(SurvivorPage, "GENERATOR")
 addToggle(SurvivorPage, "Auto Generator (Multi)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
 addToggle(SurvivorPage, "Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
-addButton(SurvivorPage, "Drop All Pallets", dropAllPallets)
 
 addSection(SurvivorPage, "HEALING")
 addToggle(SurvivorPage, "Auto Heal Team", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
 addToggle(SurvivorPage, "Auto Heal Self", false, function(v) if v then startSelfHeal() else stopSelfHeal() end end)
+
+addSection(SurvivorPage, "REVOLUTIONARY")
+addToggle(SurvivorPage, "Instant Wiggle Free", false, function(v) if v then startInstantWiggle() else stopInstantWiggle() end end)
+addToggle(SurvivorPage, "Auto Exit Gates", false, function(v) if v then startAutoExitGates() else stopAutoExitGates() end end)
+addToggle(SurvivorPage, "Killer Juke", false, function(v) if v then startKillerJuke() else stopKillerJuke() end end)
 
 addSection(KillerPage, "COMBAT")
 addToggle(KillerPage, "Aimbot", false, function(v) if v then startAimbot() else stopAimbot() end end)
