@@ -472,15 +472,14 @@ local function tapAction()
 end
 
 -- -----------------------------------------------------------
--- AUTO GENERATOR & HEALER (Direct Remote Method)
+-- AUTO GENERATOR (Remote Perfect + Side‑to‑Side, one initial tap only)
 -- -----------------------------------------------------------
 local autoGen = false
 local genConn = nil
 local currentGen = nil
 local currentPoints = {}
 local currentIndex = 1
-local skillcheckFired = false
-local lastPointUsed = nil
+local startedRepair = false   -- true after the initial tap
 
 local function findNewGenerator()
     local char = LocalPlayer.Character
@@ -514,12 +513,11 @@ end
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
+    startedRepair = false
     currentGen = nil
     currentPoints = {}
     currentIndex = 1
-    skillcheckFired = false
-    lastPointUsed = nil
-    log("INFO", "Auto Generator ON (Remote Perfect + Side‑to‑Side)")
+    log("INFO", "Auto Generator ON (One‑Tap Side‑to‑Side)")
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -541,9 +539,8 @@ local function startAutoGen()
                 currentGen = gen
                 currentPoints = pts
                 currentIndex = 1
-                skillcheckFired = false
-                lastPointUsed = nil
-                log("INFO", "New generator: " .. #pts .. " points")
+                startedRepair = false
+                log("INFO", "New generator with " .. #pts .. " points")
             else
                 return
             end
@@ -553,49 +550,30 @@ local function startAutoGen()
         local check = prompt and prompt:WaitForChild("Check", 10)
         local skillVisible = check and check.Visible
 
-        -- Move to a point if we are not currently repairing
-        if not skillVisible and not skillcheckFired then
-            local point = currentPoints[currentIndex]
-            if point then
-                root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
-                task.wait(0.2)
-                tapAction()  -- just to start the repair interaction
-                lastPointUsed = point
-                log("INFO", "Moved to point " .. currentIndex)
-            end
+        -- Initial tap to start repairing (only once per generator)
+        if not skillVisible and not startedRepair then
+            root.CFrame = CFrame.new(currentPoints[currentIndex].Position + Vector3.new(1.5, 0, 0))
+            task.wait(0.2)
+            tapAction()
+            startedRepair = true
+            log("INFO", "Initial tap at point " .. currentIndex)
         end
 
-        -- When the skillcheck appears, fire the remote immediately
-        if skillVisible and not skillcheckFired then
-            if lastPointUsed then
-                -- Determine if we are repairing a generator or healing (heal remote is only used when we are near another player, but here we force gen)
-                local nearGen = false
-                for _, pt in pairs(currentPoints) do
-                    if (root.Position - pt.Position).Magnitude < 10 then
-                        nearGen = true
-                        break
-                    end
-                end
-                if nearGen then
-                    pcall(function() genRemote:FireServer("success", 1, currentGen, lastPointUsed) end)
-                else
-                    pcall(function() healRemote:FireServer("success", 1, char) end)
-                end
-                skillcheckFired = true
-                log("SUCCESS", "Remote fired for point " .. currentIndex)
-            end
-        end
+        -- When skillcheck appears, fire remote and prepare to move after it's done
+        if skillVisible then
+            pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[currentIndex]) end)
+            -- Wait for skillcheck to disappear before moving to next point
+            repeat task.wait(0.05) until not check.Visible or not autoGen
+            if not autoGen then return end
 
-        -- Skillcheck UI disappeared -> ready for next cycle
-        if not skillVisible and skillcheckFired then
-            skillcheckFired = false
-            -- Advance to next point (side‑to‑side)
+            -- Move to next point (side‑to‑side) – no tap needed!
             if #currentPoints > 1 and currentIndex < #currentPoints then
                 currentIndex = currentIndex + 1
             else
-                currentIndex = 1  -- stay on first point
+                currentIndex = 1
             end
-            log("INFO", "Next point: " .. currentIndex)
+            root.CFrame = CFrame.new(currentPoints[currentIndex].Position + Vector3.new(1.5, 0, 0))
+            log("INFO", "Moved to point " .. currentIndex .. " (no tap)")
         end
     end)
 end
@@ -605,12 +583,12 @@ local function stopAutoGen()
     if genConn then genConn:Disconnect() genConn = nil end
     currentGen = nil
     currentPoints = {}
+    startedRepair = false
     log("INFO", "Auto Generator OFF")
 end
 
 -- -----------------------------------------------------------
 -- GOD MODE, SELF HEAL, TEAM HEAL, ESP, AIMBOT, FLY, NOCLIP
--- (unchanged, included for completeness)
 -- -----------------------------------------------------------
 local god = false
 local function godLoop()
@@ -940,4 +918,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Remote Perfect + Side‑to‑Side")
+log("SUCCESS", "VD Mini loaded – No emote, perfect side‑to‑side")
