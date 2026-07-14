@@ -452,15 +452,26 @@ local function waitUntilFree()
     return false
 end
 
-local function pressE()
-    pcall(function()
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(0.05)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-    end)
+local function tapAction()
+    local current = LocalPlayer:WaitForChild("PlayerGui")
+    local path = "Survivor-mob.Controls.action.check"
+    for seg in string.gmatch(path, "[^%.]+") do
+        if current then current = current:FindFirstChild(seg) end
+    end
+    if current and current:IsA("GuiObject") then
+        local pos = current.AbsolutePosition
+        local size = current.AbsoluteSize
+        local ins = GuiService:GetGuiInset()
+        local cx, cy = pos.X + size.X/2 + ins.X, pos.Y + size.Y/2 + ins.Y
+        pcall(function()
+            VirtualInputManager:SendTouchEvent(8822, 0, cx, cy)
+            task.wait(0.02)
+            VirtualInputManager:SendTouchEvent(8822, 2, cx, cy)
+        end)
+    end
 end
 
--- AUTO GENERATOR (Key E + Remote Perfect + Side‑to‑Side)
+-- AUTO GENERATOR (Tap + Remote Perfect + Side‑to‑Side, one tap only)
 local autoGen = false
 local genConn = nil
 local currentGen = nil
@@ -504,7 +515,7 @@ local function startAutoGen()
     currentGen = nil
     currentPoints = {}
     currentIndex = 1
-    log("INFO", "Auto Generator ON (Key E + Remote Perfect)")
+    log("INFO", "Auto Generator ON (Tap + Remote Perfect)")
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -537,13 +548,13 @@ local function startAutoGen()
         local check = prompt and prompt:WaitForChild("Check", 10)
         local skillVisible = check and check.Visible
 
-        -- Initial press E to start repairing (only once per generator)
+        -- Initial tap to start repairing (only once per generator)
         if not skillVisible and not startedRepair then
             root.CFrame = CFrame.new(currentPoints[currentIndex].Position + Vector3.new(1.5, 0, 0))
             task.wait(0.2)
-            pressE()
+            tapAction()
             startedRepair = true
-            log("INFO", "Pressed E at point " .. currentIndex)
+            log("INFO", "Tapped at point " .. currentIndex)
         end
 
         -- When skillcheck appears, fire remote and wait for it to finish
@@ -552,7 +563,7 @@ local function startAutoGen()
             repeat task.wait(0.05) until not check.Visible or not autoGen
             if not autoGen then return end
 
-            -- Move to next point (side‑to‑side) – no E press needed!
+            -- Move to next point (side‑to‑side) – no tap needed!
             if #currentPoints > 1 and currentIndex < #currentPoints then
                 currentIndex = currentIndex + 1
             else
@@ -903,4 +914,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Key E + Remote Perfect")
+log("SUCCESS", "VD Mini loaded – Tap + Remote Perfect")
