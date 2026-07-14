@@ -521,7 +521,7 @@ local function startAutoSkillcheck()
     if autoSkillcheckEnabled then return end
     autoSkillcheckEnabled = true
     log("INFO", "Starting Auto Skillcheck (direct remote)")
-    
+
     local prompt = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("SkillCheckPromptGui", 10)
     if not prompt then
         log("ERROR", "SkillCheckPromptGui not found")
@@ -532,7 +532,7 @@ local function startAutoSkillcheck()
         log("ERROR", "Check not found")
         return
     end
-    
+
     autoSkillConnection = check:GetPropertyChangedSignal("Visible"):Connect(function()
         if not autoSkillcheckEnabled then return end
         if check.Visible then
@@ -580,12 +580,12 @@ end
 local autoGeneEnabled = false
 local autoGeneConnection = nil
 
-local function getClosestGeneratorWithPoints()
+local function getClosestIncompleteGenerator()
     local char = LocalPlayer.Character
     if not char then return nil end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
-    
+
     local bestGen, bestDist, bestPoints = nil, math.huge, {}
     for _, gen in pairs(getGenerators()) do
         if getGeneratorProgress(gen) < 1 then
@@ -595,75 +595,63 @@ local function getClosestGeneratorWithPoints()
                 if pt then table.insert(pts, pt) end
             end
             if #pts >= 1 then
-                local minD = math.huge
                 for _, pt in pairs(pts) do
                     local d = (root.Position - pt.Position).Magnitude
-                    if d < minD then minD = d end
-                end
-                if minD < bestDist then
-                    bestDist = minD
-                    bestGen = gen
-                    bestPoints = pts
+                    if d < bestDist then
+                        bestDist = d
+                        bestGen = gen
+                        bestPoints = pts
+                    end
                 end
             end
         end
     end
-    
+
     if bestGen then return bestGen, bestPoints end
     return nil
 end
 
-local function repairAtPoint(point, gen)
-    local char = LocalPlayer.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
-    task.wait(0.1)
-    genRemote:FireServer("success", 1, gen, point)
-end
-
-local function autoGeneLoop()
-    while autoGeneEnabled do
-        local gen, pts = getClosestGeneratorWithPoints()
-        if not gen then
-            task.wait(0.5)
-            continue
-        end
-        
-        log("INFO", "Starting generator via remote: " .. tostring(gen))
-        repairAtPoint(pts[1], gen)
-        task.wait(0.8)
-        if pts[2] then
-            repairAtPoint(pts[2], gen)
-            task.wait(0.8)
-        end
-        if pts[3] then
-            repairAtPoint(pts[3], gen)
-            task.wait(0.8)
-        end
-        repairAtPoint(pts[1], gen)
-        
-        while autoGeneEnabled and getGeneratorProgress(gen) < 1 do
-            task.wait(0.5)
-        end
-        log("SUCCESS", "Generator completed via remote")
-        task.wait(0.5)
-    end
-end
-
-local function startAutoGene()
+local function startAutoGenerator()
     if autoGeneEnabled then return end
     autoGeneEnabled = true
-    log("INFO", "Starting Auto Generator (remote method)")
-    autoGeneConnection = task.spawn(autoGeneLoop)
+    log("INFO", "Starting Auto Generator (direct remote)")
+
+    autoGeneConnection = RunService.Heartbeat:Connect(function()
+        if not autoGeneEnabled then
+            if autoGeneConnection then autoGeneConnection:Disconnect() end
+            return
+        end
+
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        local gen, points = getClosestIncompleteGenerator()
+        if not gen then return end
+
+        for _, point in pairs(points) do
+            if not autoGeneEnabled then break end
+            if getGeneratorProgress(gen) >= 1 then break end
+
+            root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
+            task.wait(0.1)
+            genRemote:FireServer("success", 1, gen, point)
+            task.wait(0.6)
+        end
+
+        if getGeneratorProgress(gen) < 1 and points[1] then
+            root.CFrame = CFrame.new(points[1].Position + Vector3.new(1.5, 0, 0))
+            task.wait(0.1)
+            genRemote:FireServer("success", 1, gen, points[1])
+        end
+    end)
 end
 
-local function stopAutoGene()
+local function stopAutoGenerator()
     autoGeneEnabled = false
     if autoGeneConnection then
-        task.cancel(autoGeneConnection)
+        autoGeneConnection:Disconnect()
         autoGeneConnection = nil
     end
     log("INFO", "Auto Generator disabled")
@@ -703,12 +691,12 @@ local function startAutoExitGates()
     exitGateConnection = RunService.Heartbeat:Connect(function()
         if not autoExitGatesEnabled then return end
         if not allGensComplete() then return end
-        
+
         local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-        
+
         for _, gate in pairs(getGates()) do
             local gateSwitch = gate:FindFirstChild("Switch") or gate:FindFirstChild("Lever")
             if gateSwitch then
@@ -738,20 +726,20 @@ local function startKillerJuke()
         if not killerJukeEnabled then return end
         local nearestKiller, dist = getNearestKiller()
         if not nearestKiller or dist > 15 then return end
-        
+
         local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-        
+
         local killerRoot = nearestKiller:FindFirstChild("HumanoidRootPart")
         if not killerRoot then return end
-        
+
         local directionToKiller = (killerRoot.Position - root.Position).Unit
         local rightVector = Camera.CFrame.RightVector
         local jukeDirection = math.random(0,1) == 0 and rightVector or -rightVector
         local jukePosition = root.Position + jukeDirection * 10
-        
+
         root.CFrame = CFrame.new(jukePosition)
         task.wait(0.5)
     end)
@@ -832,7 +820,7 @@ local function autoHealLoop()
         if not char then task.wait(0.5) continue end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then task.wait(0.5) continue end
-        
+
         for _, plr in pairs(Players:GetPlayers()) do
             if not autoHealEnabled then break end
             if plr ~= LocalPlayer and plr.Team == LocalPlayer.Team and plr.Character then
@@ -872,14 +860,14 @@ local function createPlayerESP(plr)
     if espPlayers[plr] then return end
     local char = plr.Character
     if not char then return end
-    
+
     local highlight = Instance.new("Highlight")
     highlight.FillTransparency = 0.5
     highlight.OutlineTransparency = 0
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Adornee = char
     highlight.Parent = CoreGui
-    
+
     local head = char:FindFirstChild("Head")
     if head then
         local billboard = Instance.new("BillboardGui")
@@ -887,7 +875,7 @@ local function createPlayerESP(plr)
         billboard.StudsOffset = Vector3.new(0, 2.5, 0)
         billboard.AlwaysOnTop = true
         billboard.Parent = head
-        
+
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, 0, 1, 0)
         label.BackgroundTransparency = 1
@@ -897,7 +885,7 @@ local function createPlayerESP(plr)
         label.TextStrokeTransparency = 0
         label.TextColor3 = Color3.new(1, 1, 1)
         label.Parent = billboard
-        
+
         espPlayers[plr] = {highlight = highlight, billboard = billboard}
     else
         espPlayers[plr] = {highlight = highlight}
@@ -961,13 +949,13 @@ local function createGeneratorESP(gen)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Adornee = gen
     highlight.Parent = CoreGui
-    
+
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.new(0, 100, 0, 40)
     billboard.AlwaysOnTop = true
     billboard.StudsOffset = Vector3.new(0, 2, 0)
     billboard.Parent = gen
-    
+
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 1, 0)
     label.BackgroundTransparency = 1
@@ -977,7 +965,7 @@ local function createGeneratorESP(gen)
     label.Text = ""
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.Parent = billboard
-    
+
     espGenerators[gen] = {highlight = highlight, billboard = billboard, label = label}
 end
 
@@ -996,7 +984,7 @@ local function updateGeneratorESP()
         local progress = getGeneratorProgress(gen)
         local percent = math.floor(progress * 100)
         local color = Color3.fromRGB(150, 0, 200):Lerp(Color3.fromRGB(0, 255, 0), progress)
-        
+
         createGeneratorESP(gen)
         local data = espGenerators[gen]
         if data then
@@ -1028,7 +1016,7 @@ local function isValidAimTarget(plr)
     local role = getRole()
     if role == "SPECTATOR" then return false end
     local targetRole = plr.Team and string.upper(plr.Team.Name or "") or ""
-    
+
     if role == "SURVIVORS" then
         return targetRole == "KILLER"
     elseif role == "KILLER" then
@@ -1045,11 +1033,11 @@ end
 local function findAimTarget()
     local closest = nil
     local closestDist = 200
-    
+
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and isValidAimTarget(plr) and plr.Character then
-            local targetPart = plr.Character:FindFirstChild("UpperTorso") or 
-                              plr.Character:FindFirstChild("Torso") or 
+            local targetPart = plr.Character:FindFirstChild("UpperTorso") or
+                              plr.Character:FindFirstChild("Torso") or
                               plr.Character:FindFirstChild("HumanoidRootPart")
             if targetPart then
                 local dist = (Camera.CFrame.Position - targetPart.Position).Magnitude
@@ -1094,16 +1082,16 @@ local function startFly()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChild("Humanoid")
     if not hrp or not hum then return end
-    
+
     bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.MaxForce = Vector3.new(40000, 40000, 40000)
     bodyVelocity.Parent = hrp
-    
+
     bodyGyro = Instance.new("BodyGyro")
     bodyGyro.MaxTorque = Vector3.new(40000, 40000, 40000)
     bodyGyro.P = 1000
     bodyGyro.Parent = hrp
-    
+
     flyConnection = RunService.Heartbeat:Connect(function()
         if not flyEnabled then return end
         bodyGyro.CFrame = Camera.CFrame
@@ -1171,7 +1159,7 @@ fullbrightUpdate()
 RunService.Heartbeat:Connect(fullbrightUpdate)
 
 addSection(SurvivorPage, "GENERATOR")
-addToggle(SurvivorPage, "Auto Generator (Multi)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
+addToggle(SurvivorPage, "Auto Generator (Multi)", false, function(v) if v then startAutoGenerator() else stopAutoGenerator() end end)
 addToggle(SurvivorPage, "Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
 
 addSection(SurvivorPage, "HEALING")
