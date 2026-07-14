@@ -471,15 +471,16 @@ local function tapAction()
     end
 end
 
--- Auto Generator with Remote Skillcheck & Side‑to‑Side
+-- -----------------------------------------------------------
+-- AUTO GENERATOR & HEALER (Direct Remote Method)
+-- -----------------------------------------------------------
 local autoGen = false
 local genConn = nil
 local currentGen = nil
 local currentPoints = {}
 local currentIndex = 1
-local phase = "idle" -- idle, startRepair, waitingSkillcheck, completeCycle, stay
-local lastTapTime = 0
-local TAP_COOLDOWN = 1.0
+local skillcheckFired = false
+local lastPointUsed = nil
 
 local function findNewGenerator()
     local char = LocalPlayer.Character
@@ -495,7 +496,7 @@ local function findNewGenerator()
                 local p = g:FindFirstChild("GeneratorPoint" .. i)
                 if p then table.insert(pts, p) end
             end
-            if #pts >= 2 then  -- prefer generators with multiple points
+            if #pts >= 1 then
                 for _, p in pairs(pts) do
                     local d = (root.Position - p.Position).Magnitude
                     if d < bestDist then
@@ -513,11 +514,12 @@ end
 local function startAutoGen()
     if autoGen then return end
     autoGen = true
-    phase = "idle"
     currentGen = nil
     currentPoints = {}
-    lastTapTime = 0
-    log("INFO", "Auto Generator ON (Side‑to‑Side + Remote Perfect)")
+    currentIndex = 1
+    skillcheckFired = false
+    lastPointUsed = nil
+    log("INFO", "Auto Generator ON (Remote Perfect + Side‑to‑Side)")
 
     genConn = RunService.Heartbeat:Connect(function()
         if not autoGen then
@@ -532,15 +534,16 @@ local function startAutoGen()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        -- Find new generator if needed
+        -- Pick new generator if needed
         if not currentGen or genProgress(currentGen) >= 1 then
             local gen, pts = findNewGenerator()
             if gen then
                 currentGen = gen
                 currentPoints = pts
                 currentIndex = 1
-                phase = "idle"
-                log("INFO", "New generator with " .. #pts .. " points")
+                skillcheckFired = false
+                lastPointUsed = nil
+                log("INFO", "New generator: " .. #pts .. " points")
             else
                 return
             end
@@ -550,38 +553,49 @@ local function startAutoGen()
         local check = prompt and prompt:WaitForChild("Check", 10)
         local skillVisible = check and check.Visible
 
-        if phase == "idle" then
-            if not skillVisible and (tick() - lastTapTime) >= TAP_COOLDOWN then
-                root.CFrame = CFrame.new(currentPoints[currentIndex].Position + Vector3.new(1.5, 0, 0))
+        -- Move to a point if we are not currently repairing
+        if not skillVisible and not skillcheckFired then
+            local point = currentPoints[currentIndex]
+            if point then
+                root.CFrame = CFrame.new(point.Position + Vector3.new(1.5, 0, 0))
                 task.wait(0.2)
-                tapAction()
-                lastTapTime = tick()
-                phase = "waitingSkillcheck"
-                log("INFO", "Tapped point " .. currentIndex)
+                tapAction()  -- just to start the repair interaction
+                lastPointUsed = point
+                log("INFO", "Moved to point " .. currentIndex)
             end
-        elseif phase == "waitingSkillcheck" then
-            if skillVisible then
-                pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[currentIndex]) end)
-                phase = "completeCycle"
-                log("SUCCESS", "Remote sent for point " .. currentIndex)
-            end
-        elseif phase == "completeCycle" then
-            if not skillVisible then
-                -- Move to next point for side‑to‑side effect
-                if #currentPoints > 1 and currentIndex < #currentPoints then
-                    currentIndex = currentIndex + 1
-                    phase = "idle"
-                else
-                    -- Stay on last point (point 1 after cycling)
-                    currentIndex = 1
-                    phase = "stay"
-                    log("INFO", "Staying on point 1")
+        end
+
+        -- When the skillcheck appears, fire the remote immediately
+        if skillVisible and not skillcheckFired then
+            if lastPointUsed then
+                -- Determine if we are repairing a generator or healing (heal remote is only used when we are near another player, but here we force gen)
+                local nearGen = false
+                for _, pt in pairs(currentPoints) do
+                    if (root.Position - pt.Position).Magnitude < 10 then
+                        nearGen = true
+                        break
+                    end
                 end
+                if nearGen then
+                    pcall(function() genRemote:FireServer("success", 1, currentGen, lastPointUsed) end)
+                else
+                    pcall(function() healRemote:FireServer("success", 1, char) end)
+                end
+                skillcheckFired = true
+                log("SUCCESS", "Remote fired for point " .. currentIndex)
             end
-        elseif phase == "stay" then
-            if skillVisible then
-                pcall(function() genRemote:FireServer("success", 1, currentGen, currentPoints[1]) end)
+        end
+
+        -- Skillcheck UI disappeared -> ready for next cycle
+        if not skillVisible and skillcheckFired then
+            skillcheckFired = false
+            -- Advance to next point (side‑to‑side)
+            if #currentPoints > 1 and currentIndex < #currentPoints then
+                currentIndex = currentIndex + 1
+            else
+                currentIndex = 1  -- stay on first point
             end
+            log("INFO", "Next point: " .. currentIndex)
         end
     end)
 end
@@ -594,8 +608,10 @@ local function stopAutoGen()
     log("INFO", "Auto Generator OFF")
 end
 
--- (rest of functions unchanged: god, self heal, team heal, esp, aimbot, fly, noclip)
-
+-- -----------------------------------------------------------
+-- GOD MODE, SELF HEAL, TEAM HEAL, ESP, AIMBOT, FLY, NOCLIP
+-- (unchanged, included for completeness)
+-- -----------------------------------------------------------
 local god = false
 local function godLoop()
     while god do
@@ -873,6 +889,7 @@ RunService.Heartbeat:Connect(function()
     Lighting.Brightness = 2
 end)
 
+-- UI
 sec(Survivor, "GENERATOR")
 toggle(Survivor, "Auto Generator", false, function(v) if v then startAutoGen() else stopAutoGen() end end)
 sec(Survivor, "HEALING")
@@ -923,4 +940,4 @@ RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espGenerator then updateGenESP() end
 end)
 
-log("SUCCESS", "VD Mini loaded – Side‑to‑Side Remote Perfect")
+log("SUCCESS", "VD Mini loaded – Remote Perfect + Side‑to‑Side")
