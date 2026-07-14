@@ -1,9 +1,9 @@
 --[[
-    VIOLENCE DISTRICT - UNIFIED SCRIPT v2.1
+    VIOLENCE DISTRICT - UNIFIED SCRIPT v2.2
     • Modern UI with minimize/close
     • ESP Players + Generators + Progress + Pallets
     • Aimbot (Survivor/Killer compatible)
-    • Auto Gene (GeneratorPoint switching speed glitch)
+    • Auto Gene (multi-point speed glitch)
     • Auto Heal + Drop All Pallets (fixed)
     • Auto Skillcheck, Fly, Noclip, Speed, Jump
     • Fullbright, Next Killer Display
@@ -19,7 +19,6 @@ local GuiService = game:GetService("GuiService")
 local Lighting = game:GetService("Lighting")
 local CoreGui = (gethui and gethui()) or game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
 local Workspace = game:GetService("Workspace")
 
@@ -375,6 +374,7 @@ local function getRole()
     return string.upper(_G.RoleData.TeamName or "")
 end
 
+-- ==================== ESP ====================
 local espPlayers = {}
 local espGenerators = {}
 
@@ -392,9 +392,8 @@ local function createPlayerESP(plr)
     highlight.Parent = CoreGui
     
     local head = char:FindFirstChild("Head")
-    local billboard = nil
     if head then
-        billboard = Instance.new("BillboardGui")
+        local billboard = Instance.new("BillboardGui")
         billboard.Size = UDim2.new(0, 100, 0, 30)
         billboard.StudsOffset = Vector3.new(0, 2.5, 0)
         billboard.AlwaysOnTop = true
@@ -409,9 +408,11 @@ local function createPlayerESP(plr)
         label.TextStrokeTransparency = 0
         label.TextColor3 = Color3.new(1, 1, 1)
         label.Parent = billboard
+        
+        espPlayers[plr] = {highlight = highlight, billboard = billboard}
+    else
+        espPlayers[plr] = {highlight = highlight}
     end
-    
-    espPlayers[plr] = {highlight = highlight, billboard = billboard}
 end
 
 local function removePlayerESP(plr)
@@ -569,6 +570,7 @@ local function stopGeneratorESP()
     end
 end
 
+-- ==================== AIMBOT ====================
 local aimbotEnabled = false
 
 local function isValidAimTarget(plr)
@@ -619,15 +621,10 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-local function startAimbot()
-    aimbotEnabled = true
-end
+local function startAimbot() aimbotEnabled = true end
+local function stopAimbot() aimbotEnabled = false end
 
-local function stopAimbot()
-    aimbotEnabled = false
-end
-
--- AUTO GENERATOR WITH GENERATORPOINT SWITCHING
+-- ==================== AUTO GENERATOR (MULTI-POINT) ====================
 local autoGeneEnabled = false
 local autoGeneConnection = nil
 
@@ -649,7 +646,7 @@ local function getClosestGeneratorWithPoints()
                 local pt = gen:FindFirstChild("GeneratorPoint" .. i)
                 if pt then table.insert(points, pt) end
             end
-            if #points > 0 then
+            if #points >= 2 then  -- need at least 2 points to switch
                 local closestDist = math.huge
                 for _, pt in pairs(points) do
                     local d = (root.Position - pt.Position).Magnitude
@@ -670,6 +667,19 @@ local function getClosestGeneratorWithPoints()
     return nil
 end
 
+local function startRepairAtPoint(point)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    root.CFrame = CFrame.new(point.Position + Vector3.new(0, 3, 0))
+    task.wait(0.2)
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+end
+
 local function autoGeneLoop()
     while autoGeneEnabled do
         local gen, points = getClosestGeneratorWithPoints()
@@ -678,30 +688,28 @@ local function autoGeneLoop()
             continue
         end
         
-        local char = LocalPlayer.Character
-        if not char then task.wait(0.5) continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then task.wait(0.5) continue end
+        -- Reparar en el primer punto
+        startRepairAtPoint(points[1])
+        task.wait(0.15)
         
-        -- TP to first point and start repairing
-        local pointIndex = 1
-        root.CFrame = CFrame.new(points[pointIndex].Position + Vector3.new(0, 3, 0))
-        task.wait(0.3)
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(0.1)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        -- Cambiar al segundo punto (simular otro superviviente)
+        startRepairAtPoint(points[2])
+        task.wait(0.15)
         
-        -- Switch between points rapidly
-        local startTime = tick()
-        while autoGeneEnabled and tick() - startTime < 5 do
-            local currentProgress = getGeneratorProgress(gen)
-            if currentProgress >= 1 then break end
-            
-            pointIndex = (pointIndex % #points) + 1
-            root.CFrame = CFrame.new(points[pointIndex].Position + Vector3.new(0, 3, 0))
-            task.wait(0.15) -- Rapid but not instant TP
+        -- Si hay un tercer punto, también
+        if points[3] then
+            startRepairAtPoint(points[3])
+            task.wait(0.15)
         end
         
+        -- Finalmente volver al primer punto y quedarse reparando
+        startRepairAtPoint(points[1])
+        
+        -- Esperar hasta que termine o se cancele
+        local startTime = tick()
+        while autoGeneEnabled and getGeneratorProgress(gen) < 1 and tick() - startTime < 5 do
+            task.wait(0.1)
+        end
         task.wait(0.5)
     end
 end
@@ -720,7 +728,7 @@ local function stopAutoGene()
     end
 end
 
--- AUTO HEAL
+-- ==================== AUTO HEAL ====================
 local autoHealEnabled = false
 local healRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Healing"):WaitForChild("SkillCheckResultEvent")
 
@@ -760,17 +768,13 @@ local function stopAutoHeal()
     autoHealEnabled = false
 end
 
--- DROP ALL PALLETS (FIXED)
+-- ==================== DROP ALL PALLETS (FIXED) ====================
 local function getPalletPosition(pallet)
-    -- Try to get PrimaryPart of model
     if pallet:IsA("Model") then
         local primary = pallet.PrimaryPart
         if primary then return primary.Position end
-        -- Fallback: find any BasePart
         for _, child in pairs(pallet:GetChildren()) do
-            if child:IsA("BasePart") then
-                return child.Position
-            end
+            if child:IsA("BasePart") then return child.Position end
         end
     elseif pallet:IsA("BasePart") then
         return pallet.Position
@@ -791,11 +795,13 @@ local function dropAllPallets()
             if pallet and pallet.Parent then
                 local pos = getPalletPosition(pallet)
                 if pos then
-                    root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+                    -- Posicionarse al lado de la pallet (desde los lados, no arriba)
+                    root.CFrame = CFrame.new(pos + Vector3.new(2, 0, 0))
                     task.wait(0.2)
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    -- Usar tecla de acción (E) para tirar la pallet
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
                     task.wait(0.1)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
                     task.wait(0.3)
                 end
             end
@@ -803,7 +809,7 @@ local function dropAllPallets()
     end)
 end
 
--- FULLBRIGHT
+-- ==================== FULLBRIGHT ====================
 local function enableFullbright()
     Lighting.Ambient = Color3.fromRGB(255, 255, 255)
     Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
@@ -816,7 +822,7 @@ end
 enableFullbright()
 RunService.Heartbeat:Connect(enableFullbright)
 
--- FLY
+-- ==================== FLY ====================
 local flyEnabled = false
 local flySpeed = 50
 local flyConnection = nil
@@ -867,7 +873,7 @@ local function stopFly()
     end
 end
 
--- NOCLIP
+-- ==================== NOCLIP ====================
 local noclipEnabled = false
 local noclipConnection = nil
 
@@ -893,7 +899,7 @@ local function stopNoclip()
     end
 end
 
--- AUTO SKILLCHECK
+-- ==================== AUTO SKILLCHECK ====================
 local autoSkillcheckEnabled = false
 local autoSkillConnection = nil
 local TouchID = 8822
@@ -954,7 +960,7 @@ local function stopAutoSkillcheck()
     end
 end
 
--- BUILD UI
+-- ==================== BUILD UI ====================
 addSection("ESP SETTINGS")
 addToggle("ESP Players", false, function(v) if v then startPlayerESP() else stopPlayerESP() end end)
 addToggle("ESP Generators", false, function(v) if v then startGeneratorESP() else stopGeneratorESP() end end)
@@ -964,7 +970,7 @@ addSection("AIMBOT")
 addToggle("Aimbot", false, function(v) if v then startAimbot() else stopAimbot() end end)
 
 addSection("AUTO ACTIONS")
-addToggle("Auto Generator (Point Switch)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
+addToggle("Auto Generator (Multi-Point)", false, function(v) if v then startAutoGene() else stopAutoGene() end end)
 addToggle("Auto Heal", false, function(v) if v then startAutoHeal() else stopAutoHeal() end end)
 addToggle("Auto Skillcheck", false, function(v) if v then startAutoSkillcheck() else stopAutoSkillcheck() end end)
 addButton("Drop All Pallets", dropAllPallets)
@@ -991,7 +997,7 @@ addToggle("Infinite Jump", false, function(v)
     end
 end)
 
--- PLAYER LISTENERS
+-- ==================== PLAYER LISTENERS ====================
 Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function(char)
         task.wait(1)
@@ -1012,7 +1018,7 @@ for _, plr in pairs(Players:GetPlayers()) do
     end
 end
 
--- ESP UPDATE LOOP
+-- ==================== ESP UPDATE LOOP ====================
 RunService.RenderStepped:Connect(function()
     if _G.FeatureState.espPlayer then updatePlayerESPColors() end
     if _G.FeatureState.espGenerator then updateGeneratorESP() end
